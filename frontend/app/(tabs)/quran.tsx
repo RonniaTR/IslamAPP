@@ -7,6 +7,9 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Modal,
+  TextInput,
+  Dimensions,
+  FlatList,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,37 +17,54 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
+const { width } = Dimensions.get('window');
 
 interface Surah {
   number: number;
   name: string;
   arabic: string;
+  turkish_name?: string;
   meaning: string;
   verses: number;
   revelation: string;
-  juz: number;
 }
 
 interface Verse {
-  verse: number;
+  number: number;
   arabic: string;
   turkish: string;
-  transliteration: string;
+  page?: number;
+  juz?: number;
+}
+
+interface SurahDetail {
+  number: number;
+  name: string;
+  arabic_name: string;
+  meaning: string;
+  revelation: string;
+  total_verses: number;
+  verses: Verse[];
 }
 
 export default function QuranScreen() {
   const [surahs, setSurahs] = useState<Surah[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedSurah, setSelectedSurah] = useState<Surah | null>(null);
-  const [verses, setVerses] = useState<Verse[]>([]);
+  const [selectedSurah, setSelectedSurah] = useState<SurahDetail | null>(null);
   const [loadingVerses, setLoadingVerses] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [bookmarks, setBookmarks] = useState<any[]>([]);
   const [userId, setUserId] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
+  const [dailyVerse, setDailyVerse] = useState<any>(null);
 
   useEffect(() => {
     initUser();
     fetchSurahs();
+    fetchDailyVerse();
   }, []);
 
   const initUser = async () => {
@@ -68,6 +88,15 @@ export default function QuranScreen() {
     }
   };
 
+  const fetchDailyVerse = async () => {
+    try {
+      const res = await axios.get(`${BACKEND_URL}/api/quran/random`);
+      setDailyVerse(res.data);
+    } catch (error) {
+      console.error('Error fetching daily verse:', error);
+    }
+  };
+
   const loadBookmarks = async (uid: string) => {
     try {
       const res = await axios.get(`${BACKEND_URL}/api/quran/bookmarks/${uid}`);
@@ -77,17 +106,16 @@ export default function QuranScreen() {
     }
   };
 
-  const openSurah = async (surah: Surah) => {
-    setSelectedSurah(surah);
+  const openSurah = async (surahNumber: number) => {
     setShowModal(true);
     setLoadingVerses(true);
     
     try {
-      const res = await axios.get(`${BACKEND_URL}/api/quran/verses/${surah.name.toLowerCase()}`);
-      setVerses(res.data.verses);
+      const res = await axios.get(`${BACKEND_URL}/api/quran/surah/${surahNumber}`);
+      setSelectedSurah(res.data);
     } catch (error) {
-      console.error('Error fetching verses:', error);
-      setVerses([]);
+      console.error('Error fetching surah:', error);
+      setSelectedSurah(null);
     } finally {
       setLoadingVerses(false);
     }
@@ -108,18 +136,79 @@ export default function QuranScreen() {
     }
   };
 
+  const searchQuran = async () => {
+    if (!searchQuery.trim() || searchQuery.length < 2) return;
+    
+    setSearching(true);
+    try {
+      const res = await axios.get(`${BACKEND_URL}/api/quran/search?query=${encodeURIComponent(searchQuery)}`);
+      setSearchResults(res.data.results || []);
+    } catch (error) {
+      console.error('Error searching:', error);
+      setSearchResults([]);
+    } finally {
+      setSearching(false);
+    }
+  };
+
   const closeModal = () => {
     setShowModal(false);
     setSelectedSurah(null);
-    setVerses([]);
   };
+
+  const renderSurahItem = ({ item }: { item: Surah }) => (
+    <TouchableOpacity
+      style={styles.surahItem}
+      onPress={() => openSurah(item.number)}
+    >
+      <View style={styles.surahNumber}>
+        <Text style={styles.surahNumberText}>{item.number}</Text>
+      </View>
+      <View style={styles.surahInfo}>
+        <View style={styles.surahNameRow}>
+          <Text style={styles.surahName}>{item.name}</Text>
+          <Text style={styles.surahArabic}>{item.arabic}</Text>
+        </View>
+        <Text style={styles.surahDetails}>
+          {item.meaning} • {item.verses} Ayet • {item.revelation}
+        </Text>
+      </View>
+      <Ionicons name="chevron-forward" size={20} color="#64748b" />
+    </TouchableOpacity>
+  );
+
+  const renderVerseItem = ({ item, index }: { item: Verse; index: number }) => (
+    <View style={styles.verseCard}>
+      <View style={styles.verseHeader}>
+        <View style={styles.verseNumberBadge}>
+          <Text style={styles.verseNumberText}>{item.number}</Text>
+        </View>
+        <View style={styles.verseActions}>
+          {item.juz && (
+            <View style={styles.juzBadge}>
+              <Text style={styles.juzText}>Cüz {item.juz}</Text>
+            </View>
+          )}
+          <TouchableOpacity
+            onPress={() => addBookmark(selectedSurah?.number || 0, item.number)}
+            style={styles.bookmarkButton}
+          >
+            <Ionicons name="bookmark-outline" size={20} color="#64748b" />
+          </TouchableOpacity>
+        </View>
+      </View>
+      <Text style={styles.verseArabic}>{item.arabic}</Text>
+      <View style={styles.verseDivider} />
+      <Text style={styles.verseTurkish}>{item.turkish}</Text>
+    </View>
+  );
 
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#10b981" />
-          <Text style={styles.loadingText}>Kur'an yükleniyor...</Text>
+          <Text style={styles.loadingText}>Kur'an-ı Kerim yükleniyor...</Text>
         </View>
       </SafeAreaView>
     );
@@ -127,78 +216,118 @@ export default function QuranScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={styles.headerIcon}>
-            <Ionicons name="book" size={32} color="#10b981" />
+      {/* Header */}
+      <View style={styles.header}>
+        <View style={styles.headerTop}>
+          <View>
+            <Text style={styles.headerTitle}>Kur'an-ı Kerim</Text>
+            <Text style={styles.headerSubtitle}>114 Sure • 6236 Ayet</Text>
           </View>
-          <Text style={styles.headerTitle}>Kur'an-ı Kerim</Text>
-          <Text style={styles.headerSubtitle}>Okuyun, anlayın, yaşayın</Text>
+          <TouchableOpacity
+            style={styles.searchButton}
+            onPress={() => setShowSearch(!showSearch)}
+          >
+            <Ionicons name={showSearch ? "close" : "search"} size={24} color="#10b981" />
+          </TouchableOpacity>
         </View>
 
-        {/* Stats */}
-        <View style={styles.statsRow}>
-          <View style={styles.statCard}>
-            <Text style={styles.statValue}>114</Text>
-            <Text style={styles.statLabel}>Sure</Text>
+        {/* Search Bar */}
+        {showSearch && (
+          <View style={styles.searchContainer}>
+            <View style={styles.searchInputContainer}>
+              <Ionicons name="search" size={20} color="#64748b" />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Kur'an'da ara..."
+                placeholderTextColor="#64748b"
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                onSubmitEditing={searchQuran}
+                returnKeyType="search"
+              />
+              {searchQuery.length > 0 && (
+                <TouchableOpacity onPress={() => { setSearchQuery(''); setSearchResults([]); }}>
+                  <Ionicons name="close-circle" size={20} color="#64748b" />
+                </TouchableOpacity>
+              )}
+            </View>
+            <TouchableOpacity style={styles.searchSubmit} onPress={searchQuran}>
+              <Text style={styles.searchSubmitText}>Ara</Text>
+            </TouchableOpacity>
           </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statValue}>6236</Text>
-            <Text style={styles.statLabel}>Ayet</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statValue}>{bookmarks.length}</Text>
-            <Text style={styles.statLabel}>Yer İmi</Text>
-          </View>
-        </View>
+        )}
+      </View>
 
-        {/* Popular Surahs */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Popüler Sureler</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {surahs.filter(s => [1, 36, 55, 67, 112, 113, 114].includes(s.number)).map((surah) => (
-              <TouchableOpacity
-                key={surah.number}
-                style={styles.popularCard}
-                onPress={() => openSurah(surah)}
-              >
-                <Text style={styles.popularArabic}>{surah.arabic}</Text>
-                <Text style={styles.popularName}>{surah.name}</Text>
-                <Text style={styles.popularMeaning}>{surah.meaning}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
-
-        {/* All Surahs */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Tüm Sureler</Text>
-          {surahs.map((surah) => (
+      {/* Search Results */}
+      {showSearch && searchResults.length > 0 ? (
+        <ScrollView style={styles.searchResults}>
+          <Text style={styles.searchResultsTitle}>{searchResults.length} sonuç bulundu</Text>
+          {searchResults.map((result, index) => (
             <TouchableOpacity
-              key={surah.number}
-              style={styles.surahItem}
-              onPress={() => openSurah(surah)}
+              key={index}
+              style={styles.searchResultItem}
+              onPress={() => {
+                setShowSearch(false);
+                openSurah(result.surah_number);
+              }}
             >
-              <View style={styles.surahNumber}>
-                <Text style={styles.surahNumberText}>{surah.number}</Text>
+              <View style={styles.searchResultHeader}>
+                <Text style={styles.searchResultSurah}>{result.surah_name}</Text>
+                <Text style={styles.searchResultVerse}>Ayet {result.verse_number}</Text>
               </View>
-              <View style={styles.surahInfo}>
-                <View style={styles.surahNameRow}>
-                  <Text style={styles.surahName}>{surah.name}</Text>
-                  <Text style={styles.surahArabic}>{surah.arabic}</Text>
-                </View>
-                <Text style={styles.surahDetails}>
-                  {surah.meaning} • {surah.verses} Ayet • {surah.revelation}
-                </Text>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color="#64748b" />
+              <Text style={styles.searchResultArabic} numberOfLines={1}>{result.arabic}</Text>
+              <Text style={styles.searchResultTurkish} numberOfLines={2}>{result.turkish}</Text>
             </TouchableOpacity>
           ))}
-        </View>
+        </ScrollView>
+      ) : (
+        <FlatList
+          data={surahs}
+          renderItem={renderSurahItem}
+          keyExtractor={(item) => item.number.toString()}
+          contentContainerStyle={styles.surahList}
+          showsVerticalScrollIndicator={false}
+          ListHeaderComponent={() => (
+            <>
+              {/* Daily Verse */}
+              {dailyVerse && (
+                <View style={styles.dailyVerse}>
+                  <View style={styles.dailyVerseHeader}>
+                    <Ionicons name="sparkles" size={20} color="#f59e0b" />
+                    <Text style={styles.dailyVerseTitle}>Günün Ayeti</Text>
+                  </View>
+                  <Text style={styles.dailyVerseArabic}>{dailyVerse.arabic}</Text>
+                  <Text style={styles.dailyVerseTurkish}>{dailyVerse.turkish}</Text>
+                  <Text style={styles.dailyVerseSource}>
+                    {dailyVerse.surah_name}, {dailyVerse.verse_number}. Ayet
+                  </Text>
+                </View>
+              )}
 
-        <View style={{ height: 24 }} />
-      </ScrollView>
+              {/* Stats */}
+              <View style={styles.statsContainer}>
+                <View style={styles.statItem}>
+                  <Ionicons name="book" size={20} color="#10b981" />
+                  <Text style={styles.statValue}>114</Text>
+                  <Text style={styles.statLabel}>Sure</Text>
+                </View>
+                <View style={styles.statItem}>
+                  <Ionicons name="document-text" size={20} color="#3b82f6" />
+                  <Text style={styles.statValue}>6236</Text>
+                  <Text style={styles.statLabel}>Ayet</Text>
+                </View>
+                <View style={styles.statItem}>
+                  <Ionicons name="bookmark" size={20} color="#f59e0b" />
+                  <Text style={styles.statValue}>{bookmarks.length}</Text>
+                  <Text style={styles.statLabel}>Yer İmi</Text>
+                </View>
+              </View>
+
+              <Text style={styles.sectionTitle}>Sureler</Text>
+            </>
+          )}
+        />
+      )}
 
       {/* Surah Detail Modal */}
       <Modal
@@ -214,47 +343,50 @@ export default function QuranScreen() {
               <Ionicons name="close" size={24} color="#f8fafc" />
             </TouchableOpacity>
             <View style={styles.modalTitleContainer}>
-              <Text style={styles.modalTitle}>{selectedSurah?.name}</Text>
-              <Text style={styles.modalSubtitle}>{selectedSurah?.arabic}</Text>
+              {selectedSurah && (
+                <>
+                  <Text style={styles.modalTitle}>{selectedSurah.name}</Text>
+                  <Text style={styles.modalSubtitle}>{selectedSurah.arabic_name}</Text>
+                </>
+              )}
             </View>
             <View style={{ width: 40 }} />
           </View>
 
+          {/* Surah Info */}
+          {selectedSurah && (
+            <View style={styles.surahInfoBar}>
+              <Text style={styles.surahInfoText}>
+                {selectedSurah.meaning} • {selectedSurah.total_verses} Ayet • {selectedSurah.revelation}
+              </Text>
+            </View>
+          )}
+
           {/* Verses */}
-          <ScrollView style={styles.versesContainer}>
-            {loadingVerses ? (
-              <View style={styles.versesLoading}>
-                <ActivityIndicator size="large" color="#10b981" />
-                <Text style={styles.loadingText}>Ayetler yükleniyor...</Text>
-              </View>
-            ) : verses.length > 0 ? (
-              verses.map((verse) => (
-                <View key={verse.verse} style={styles.verseCard}>
-                  <View style={styles.verseHeader}>
-                    <View style={styles.verseNumber}>
-                      <Text style={styles.verseNumberText}>{verse.verse}</Text>
-                    </View>
-                    <TouchableOpacity
-                      onPress={() => addBookmark(selectedSurah?.number || 0, verse.verse)}
-                    >
-                      <Ionicons name="bookmark-outline" size={20} color="#64748b" />
-                    </TouchableOpacity>
-                  </View>
-                  <Text style={styles.verseArabic}>{verse.arabic}</Text>
-                  <Text style={styles.verseTransliteration}>{verse.transliteration}</Text>
-                  <Text style={styles.verseTurkish}>{verse.turkish}</Text>
-                </View>
-              ))
-            ) : (
-              <View style={styles.noVerses}>
-                <Ionicons name="book-outline" size={48} color="#64748b" />
-                <Text style={styles.noVersesText}>
-                  Bu sure için ayet verisi henüz mevcut değil.
-                </Text>
-              </View>
-            )}
-            <View style={{ height: 40 }} />
-          </ScrollView>
+          {loadingVerses ? (
+            <View style={styles.versesLoading}>
+              <ActivityIndicator size="large" color="#10b981" />
+              <Text style={styles.loadingText}>Ayetler yükleniyor...</Text>
+            </View>
+          ) : selectedSurah?.verses ? (
+            <FlatList
+              data={selectedSurah.verses}
+              renderItem={renderVerseItem}
+              keyExtractor={(item) => item.number.toString()}
+              contentContainerStyle={styles.versesList}
+              showsVerticalScrollIndicator={false}
+              initialNumToRender={10}
+              maxToRenderPerBatch={10}
+              windowSize={5}
+            />
+          ) : (
+            <View style={styles.noVerses}>
+              <Ionicons name="book-outline" size={48} color="#64748b" />
+              <Text style={styles.noVersesText}>
+                Ayetler yüklenemedi.
+              </Text>
+            </View>
+          )}
         </View>
       </Modal>
     </SafeAreaView>
@@ -277,17 +409,16 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   header: {
-    alignItems: 'center',
-    paddingVertical: 24,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1e293b',
   },
-  headerIcon: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: '#10b98120',
-    justifyContent: 'center',
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
   },
   headerTitle: {
     fontSize: 28,
@@ -297,33 +428,146 @@ const styles = StyleSheet.create({
   headerSubtitle: {
     fontSize: 14,
     color: '#64748b',
-    marginTop: 4,
+    marginTop: 2,
   },
-  statsRow: {
+  searchButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#1e293b',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  searchContainer: {
     flexDirection: 'row',
-    paddingHorizontal: 16,
-    gap: 12,
+    marginTop: 12,
+    gap: 8,
   },
-  statCard: {
+  searchInputContainer: {
     flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1e293b',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    gap: 8,
+  },
+  searchInput: {
+    flex: 1,
+    color: '#f8fafc',
+    fontSize: 16,
+    paddingVertical: 12,
+  },
+  searchSubmit: {
+    backgroundColor: '#10b981',
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    justifyContent: 'center',
+  },
+  searchSubmitText: {
+    color: '#ffffff',
+    fontWeight: '600',
+  },
+  searchResults: {
+    flex: 1,
+    padding: 16,
+  },
+  searchResultsTitle: {
+    color: '#64748b',
+    fontSize: 14,
+    marginBottom: 12,
+  },
+  searchResultItem: {
+    backgroundColor: '#1e293b',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 8,
+  },
+  searchResultHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  searchResultSurah: {
+    color: '#10b981',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  searchResultVerse: {
+    color: '#64748b',
+    fontSize: 12,
+  },
+  searchResultArabic: {
+    color: '#f8fafc',
+    fontSize: 18,
+    textAlign: 'right',
+    marginBottom: 8,
+  },
+  searchResultTurkish: {
+    color: '#94a3b8',
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  dailyVerse: {
     backgroundColor: '#1e293b',
     borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: '#f59e0b',
+  },
+  dailyVerseHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  dailyVerseTitle: {
+    color: '#f59e0b',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  dailyVerseArabic: {
+    color: '#f8fafc',
+    fontSize: 20,
+    textAlign: 'right',
+    lineHeight: 32,
+    marginBottom: 12,
+  },
+  dailyVerseTurkish: {
+    color: '#e2e8f0',
+    fontSize: 15,
+    lineHeight: 24,
+    fontStyle: 'italic',
+  },
+  dailyVerseSource: {
+    color: '#64748b',
+    fontSize: 12,
+    marginTop: 12,
+    textAlign: 'right',
+  },
+  statsContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 20,
+  },
+  statItem: {
+    flex: 1,
+    backgroundColor: '#1e293b',
+    borderRadius: 12,
     padding: 16,
     alignItems: 'center',
   },
   statValue: {
-    color: '#10b981',
-    fontSize: 24,
+    color: '#f8fafc',
+    fontSize: 20,
     fontWeight: 'bold',
+    marginTop: 8,
   },
   statLabel: {
     color: '#64748b',
     fontSize: 12,
     marginTop: 4,
-  },
-  section: {
-    paddingHorizontal: 16,
-    marginTop: 24,
   },
   sectionTitle: {
     color: '#f8fafc',
@@ -331,28 +575,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginBottom: 12,
   },
-  popularCard: {
-    backgroundColor: '#1e293b',
-    borderRadius: 16,
-    padding: 20,
-    marginRight: 12,
-    width: 140,
-    alignItems: 'center',
-  },
-  popularArabic: {
-    fontSize: 24,
-    color: '#10b981',
-    marginBottom: 8,
-  },
-  popularName: {
-    color: '#f8fafc',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  popularMeaning: {
-    color: '#64748b',
-    fontSize: 12,
-    marginTop: 4,
+  surahList: {
+    padding: 16,
   },
   surahItem: {
     flexDirection: 'row',
@@ -391,7 +615,7 @@ const styles = StyleSheet.create({
   },
   surahArabic: {
     color: '#10b981',
-    fontSize: 16,
+    fontSize: 18,
   },
   surahDetails: {
     color: '#64748b',
@@ -430,13 +654,23 @@ const styles = StyleSheet.create({
     fontSize: 20,
     marginTop: 4,
   },
-  versesContainer: {
-    flex: 1,
+  surahInfoBar: {
+    backgroundColor: '#1e293b',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+  },
+  surahInfoText: {
+    color: '#94a3b8',
+    fontSize: 13,
+    textAlign: 'center',
+  },
+  versesList: {
     padding: 16,
   },
   versesLoading: {
+    flex: 1,
     alignItems: 'center',
-    paddingTop: 40,
+    justifyContent: 'center',
   },
   verseCard: {
     backgroundColor: '#1e293b',
@@ -450,10 +684,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 16,
   },
-  verseNumber: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+  verseNumberBadge: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: '#10b98120',
     justifyContent: 'center',
     alignItems: 'center',
@@ -463,27 +697,45 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
+  verseActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  juzBadge: {
+    backgroundColor: '#3b82f620',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  juzText: {
+    color: '#3b82f6',
+    fontSize: 11,
+    fontWeight: '500',
+  },
+  bookmarkButton: {
+    padding: 4,
+  },
   verseArabic: {
     color: '#f8fafc',
     fontSize: 24,
     textAlign: 'right',
-    lineHeight: 40,
-    marginBottom: 16,
+    lineHeight: 42,
   },
-  verseTransliteration: {
-    color: '#10b981',
-    fontSize: 14,
-    fontStyle: 'italic',
-    marginBottom: 12,
+  verseDivider: {
+    height: 1,
+    backgroundColor: '#334155',
+    marginVertical: 16,
   },
   verseTurkish: {
     color: '#e2e8f0',
-    fontSize: 15,
-    lineHeight: 24,
+    fontSize: 16,
+    lineHeight: 26,
   },
   noVerses: {
+    flex: 1,
     alignItems: 'center',
-    paddingTop: 60,
+    justifyContent: 'center',
   },
   noVersesText: {
     color: '#64748b',

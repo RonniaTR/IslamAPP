@@ -1,9 +1,10 @@
-from fastapi import FastAPI, APIRouter, HTTPException
+from fastapi import FastAPI, APIRouter, HTTPException, Query
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import logging
+import json
 from pathlib import Path
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
@@ -14,6 +15,30 @@ from emergentintegrations.llm.chat import LlmChat, UserMessage
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
+
+# ===================== LOAD QURAN DATA =====================
+QURAN_ARABIC = None
+QURAN_TURKISH = None
+
+def load_quran_data():
+    global QURAN_ARABIC, QURAN_TURKISH
+    try:
+        arabic_path = ROOT_DIR / 'data' / 'quran_arabic.json'
+        turkish_path = ROOT_DIR / 'data' / 'quran_turkish.json'
+        
+        if arabic_path.exists():
+            with open(arabic_path, 'r', encoding='utf-8') as f:
+                QURAN_ARABIC = json.load(f)['data']['surahs']
+        
+        if turkish_path.exists():
+            with open(turkish_path, 'r', encoding='utf-8') as f:
+                QURAN_TURKISH = json.load(f)['data']['surahs']
+        
+        print(f"Loaded Quran data: {len(QURAN_ARABIC) if QURAN_ARABIC else 0} surahs")
+    except Exception as e:
+        print(f"Error loading Quran data: {e}")
+
+load_quran_data()
 
 # MongoDB connection
 mongo_url = os.environ['MONGO_URL']
@@ -686,31 +711,189 @@ CEVAP FORMATI:
         logger.error(f"Scholar API error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"AI service error: {str(e)}")
 
-# ===================== QURAN API =====================
+# ===================== QURAN API (FULL DATA) =====================
 
 @api_router.get("/quran/surahs")
 async def get_surahs():
-    """Get list of all surahs"""
-    return SURAHS
+    """Get list of all 114 surahs with metadata"""
+    if not QURAN_ARABIC:
+        return SURAHS  # Fallback to static data
+    
+    surahs = []
+    for i, surah in enumerate(QURAN_ARABIC):
+        turkish_name = QURAN_TURKISH[i]['name'] if QURAN_TURKISH and i < len(QURAN_TURKISH) else surah.get('englishName', '')
+        surahs.append({
+            "number": surah['number'],
+            "name": surah.get('englishName', ''),
+            "arabic": surah.get('name', ''),
+            "turkish_name": turkish_name,
+            "meaning": surah.get('englishNameTranslation', ''),
+            "verses": surah.get('numberOfAyahs', 0),
+            "revelation": "Mekke" if surah.get('revelationType') == 'Meccan' else "Medine"
+        })
+    return surahs
 
 @api_router.get("/quran/surah/{surah_number}")
 async def get_surah(surah_number: int):
-    """Get surah details"""
-    for surah in SURAHS:
-        if surah["number"] == surah_number:
-            return surah
-    raise HTTPException(status_code=404, detail="Surah not found")
-
-@api_router.get("/quran/verses/{surah_name}")
-async def get_verses(surah_name: str):
-    """Get verses of a surah"""
-    surah_key = surah_name.lower()
-    if surah_key in SAMPLE_VERSES:
-        return {
-            "surah": surah_name,
-            "verses": SAMPLE_VERSES[surah_key]
+    """Get surah details with all verses"""
+    if not QURAN_ARABIC or surah_number < 1 or surah_number > 114:
+        raise HTTPException(status_code=404, detail="Surah not found")
+    
+    arabic_surah = QURAN_ARABIC[surah_number - 1]
+    turkish_surah = QURAN_TURKISH[surah_number - 1] if QURAN_TURKISH else None
+    
+    verses = []
+    for i, ayah in enumerate(arabic_surah['ayahs']):
+        verse = {
+            "number": ayah['numberInSurah'],
+            "arabic": ayah['text'],
+            "turkish": turkish_surah['ayahs'][i]['text'] if turkish_surah else "",
+            "page": ayah.get('page', 0),
+            "juz": ayah.get('juz', 0),
+            "hizbQuarter": ayah.get('hizbQuarter', 0)
         }
-    raise HTTPException(status_code=404, detail="Verses not found for this surah")
+        verses.append(verse)
+    
+    return {
+        "number": arabic_surah['number'],
+        "name": arabic_surah.get('englishName', ''),
+        "arabic_name": arabic_surah.get('name', ''),
+        "meaning": arabic_surah.get('englishNameTranslation', ''),
+        "revelation": "Mekke" if arabic_surah.get('revelationType') == 'Meccan' else "Medine",
+        "total_verses": len(verses),
+        "verses": verses
+    }
+
+@api_router.get("/quran/verse/{surah_number}/{verse_number}")
+async def get_verse(surah_number: int, verse_number: int):
+    """Get specific verse with Arabic and Turkish"""
+    if not QURAN_ARABIC or surah_number < 1 or surah_number > 114:
+        raise HTTPException(status_code=404, detail="Surah not found")
+    
+    arabic_surah = QURAN_ARABIC[surah_number - 1]
+    turkish_surah = QURAN_TURKISH[surah_number - 1] if QURAN_TURKISH else None
+    
+    if verse_number < 1 or verse_number > len(arabic_surah['ayahs']):
+        raise HTTPException(status_code=404, detail="Verse not found")
+    
+    ayah = arabic_surah['ayahs'][verse_number - 1]
+    
+    return {
+        "surah_number": surah_number,
+        "surah_name": arabic_surah.get('englishName', ''),
+        "surah_arabic": arabic_surah.get('name', ''),
+        "verse_number": verse_number,
+        "arabic": ayah['text'],
+        "turkish": turkish_surah['ayahs'][verse_number - 1]['text'] if turkish_surah else "",
+        "page": ayah.get('page', 0),
+        "juz": ayah.get('juz', 0)
+    }
+
+@api_router.get("/quran/search")
+async def search_quran(query: str = Query(..., min_length=2)):
+    """Search in Quran verses (Turkish translation)"""
+    if not QURAN_TURKISH:
+        raise HTTPException(status_code=500, detail="Quran data not loaded")
+    
+    results = []
+    query_lower = query.lower()
+    
+    for surah in QURAN_TURKISH:
+        for ayah in surah['ayahs']:
+            if query_lower in ayah['text'].lower():
+                arabic_text = ""
+                if QURAN_ARABIC:
+                    arabic_surah = QURAN_ARABIC[surah['number'] - 1]
+                    arabic_text = arabic_surah['ayahs'][ayah['numberInSurah'] - 1]['text']
+                
+                results.append({
+                    "surah_number": surah['number'],
+                    "surah_name": surah.get('englishName', ''),
+                    "verse_number": ayah['numberInSurah'],
+                    "arabic": arabic_text,
+                    "turkish": ayah['text']
+                })
+                
+                if len(results) >= 50:  # Limit results
+                    break
+        if len(results) >= 50:
+            break
+    
+    return {"query": query, "count": len(results), "results": results}
+
+@api_router.get("/quran/juz/{juz_number}")
+async def get_juz(juz_number: int):
+    """Get all verses in a specific Juz (1-30)"""
+    if not QURAN_ARABIC or juz_number < 1 or juz_number > 30:
+        raise HTTPException(status_code=404, detail="Juz not found")
+    
+    verses = []
+    for i, surah in enumerate(QURAN_ARABIC):
+        for j, ayah in enumerate(surah['ayahs']):
+            if ayah.get('juz') == juz_number:
+                turkish_text = ""
+                if QURAN_TURKISH:
+                    turkish_text = QURAN_TURKISH[i]['ayahs'][j]['text']
+                
+                verses.append({
+                    "surah_number": surah['number'],
+                    "surah_name": surah.get('englishName', ''),
+                    "verse_number": ayah['numberInSurah'],
+                    "arabic": ayah['text'],
+                    "turkish": turkish_text
+                })
+    
+    return {"juz": juz_number, "total_verses": len(verses), "verses": verses}
+
+@api_router.get("/quran/page/{page_number}")
+async def get_page(page_number: int):
+    """Get all verses in a specific page (1-604)"""
+    if not QURAN_ARABIC or page_number < 1 or page_number > 604:
+        raise HTTPException(status_code=404, detail="Page not found")
+    
+    verses = []
+    for i, surah in enumerate(QURAN_ARABIC):
+        for j, ayah in enumerate(surah['ayahs']):
+            if ayah.get('page') == page_number:
+                turkish_text = ""
+                if QURAN_TURKISH:
+                    turkish_text = QURAN_TURKISH[i]['ayahs'][j]['text']
+                
+                verses.append({
+                    "surah_number": surah['number'],
+                    "surah_name": surah.get('englishName', ''),
+                    "surah_arabic": surah.get('name', ''),
+                    "verse_number": ayah['numberInSurah'],
+                    "arabic": ayah['text'],
+                    "turkish": turkish_text
+                })
+    
+    return {"page": page_number, "total_verses": len(verses), "verses": verses}
+
+@api_router.get("/quran/random")
+async def get_random_verse():
+    """Get a random verse"""
+    import random
+    if not QURAN_ARABIC:
+        raise HTTPException(status_code=500, detail="Quran data not loaded")
+    
+    surah_idx = random.randint(0, 113)
+    surah = QURAN_ARABIC[surah_idx]
+    verse_idx = random.randint(0, len(surah['ayahs']) - 1)
+    ayah = surah['ayahs'][verse_idx]
+    
+    turkish_text = ""
+    if QURAN_TURKISH:
+        turkish_text = QURAN_TURKISH[surah_idx]['ayahs'][verse_idx]['text']
+    
+    return {
+        "surah_number": surah['number'],
+        "surah_name": surah.get('englishName', ''),
+        "surah_arabic": surah.get('name', ''),
+        "verse_number": ayah['numberInSurah'],
+        "arabic": ayah['text'],
+        "turkish": turkish_text
+    }
 
 @api_router.post("/quran/bookmark")
 async def add_bookmark(user_id: str, surah: int, verse: int):
@@ -729,7 +912,7 @@ async def add_bookmark(user_id: str, surah: int, verse: int):
 async def get_bookmarks(user_id: str):
     """Get user's bookmarks"""
     bookmarks = await db.quran_bookmarks.find({"user_id": user_id}).to_list(100)
-    return bookmarks
+    return [{"id": str(b.get("_id", b.get("id", ""))), "surah": b["surah"], "verse": b["verse"]} for b in bookmarks]
 
 # ===================== HADITH API =====================
 
@@ -869,7 +1052,60 @@ async def get_leaderboard():
     
     return leaderboard
 
-# ===================== AI CHAT (EXISTING) =====================
+# ===================== AI CHAT (İSLAMİ DANIŞMAN) =====================
+
+ISLAMIC_ADVISOR_SYSTEM_PROMPT = """Sen bir İslami danışman AI'sın. Kullanıcıların İslami, hayati veya gündelik yaşamla ilgili sorunlarını, sorularını öncelikle Kur'an-ı Kerim ayetlerine dayalı olarak yanıtla, ardından Kur'an'a uygun ve sahih hadis kaynaklarından (Buhârî, Müslim gibi muteber kaynaklar) destekleyici sözlerle güçlendir.
+
+## CEVAP FORMATI (Bu formatı her zaman kullan):
+
+### 📋 SORU ÖZETİ
+Kullanıcının sorusunu kısaca özetle.
+
+### 📖 KUR'AN-I KERİM'DEN
+Soruya doğrudan ilgili Kur'an ayetlerini (sure adı ve ayet numarasıyla) bul ve alıntıla.
+- Ayetleri orijinal Arapça metinle birlikte ver
+- Türkçe mealini ekle
+- Ayetin bağlamını açıkla
+
+### 📚 HADİS-İ ŞERİFLER
+Konuya uygun sahih hadisleri kaynak belirterek ekle.
+Format: "Peygamber Efendimiz (s.a.v.) şöyle buyurmuştur: '...' (Buhârî/Müslim, Kitap Adı)"
+
+### 🙏 DUA ÖNERİSİ
+Soruna göre uygun dua öner:
+- Arapça metin
+- Türkçe okunuşu (transliterasyon)
+- Türkçe meali
+- Referans (Hisnü'l-Müslim veya benzeri kaynaklardan)
+
+### 📜 İLGİLİ KISSA/HİKAYE
+Sorunla ilgili İslami kıssalar veya hikayeler ekle:
+- Peygamber Efendimiz'in (s.a.v.) hayatından
+- Sahabe kıssaları
+- Din alimlerinin özlü sözleri
+Muteber kaynak belirt (Siyer kitapları, Tabakat vb.)
+
+### 💡 TAVSİYE VE SONUÇ
+- Kullanıcıya ne yapması gerektiğini net ve adım adım açıkla
+- Kişisel yorum ekleme, ayetlerin ve hadislerin öğretisine sadık kal
+- Teşvik edici ve umut verici bir kapanış yap
+
+## ÖNEMLİ KURALLAR:
+1. Her zaman Türkçe yanıt ver
+2. Ayet ve hadis numaralarını doğru ver
+3. Fetva verme, sadece bilgi ve yönlendirme yap
+4. Kaynakları mutlaka belirt
+5. Saygılı ve nazik ol
+6. Emin olmadığın konularda "Bu konuda bir ilim ehline danışmanızı tavsiye ederim" de
+7. Ayetleri Arapça + Türkçe ver
+8. Hadislerin sahihlik derecesini belirt (Sahih, Hasen, Zayıf)
+
+## ÖRNEK KAYNAK KULLANIMI:
+- Kur'an: "(Bakara Suresi, 2:286)"
+- Hadis: "(Buhârî, Kitâbü'l-Îmân, No: 8)" 
+- Dua: "(Hisnü'l-Müslim, Sabah-Akşam Duaları)"
+- Siyer: "(İbn Hişâm, es-Sîretü'n-Nebeviyye)"
+"""
 
 @api_router.post("/ai/chat", response_model=ChatResponse)
 async def ai_chat(request: ChatRequest):
@@ -890,24 +1126,11 @@ async def ai_chat(request: ChatRequest):
             role = "Kullanıcı" if msg["role"] == "user" else "Asistan"
             context += f"{role}: {msg['content']}\n"
         
-        system_message = """Sen bir İslami bilgi asistanısın. Türkçe olarak cevap ver.
-        
-Görevlerin:
-1. Kur'an ayetleri, hadisler ve fıkıh konularında bilgi ver
-2. Farklı âlimlerin görüşlerini karşılaştır (Diyanet, Elmalılı Hamdi Yazır, Ömer Nasuhi Bilmen, vs.)
-3. Kaynaklarını belirt
-4. Dini konularda nazik ve saygılı ol
-5. Tartışmalı konularda farklı görüşleri sun
-6. Namaz, oruç, zekat gibi ibadet konularında yardımcı ol
-
-Önemli: Her zaman güvenilir kaynaklara başvur ve fetva verme, sadece bilgi paylaş. Kullanıcıyı daha fazla araştırmaya teşvik et.
-
-Mevcut sohbet geçmişi:
-""" + context
+        system_message = ISLAMIC_ADVISOR_SYSTEM_PROMPT + f"\n\nMevcut sohbet geçmişi:\n{context}"
         
         chat = LlmChat(
             api_key=EMERGENT_LLM_KEY,
-            session_id=f"islamic_assistant_{request.session_id}",
+            session_id=f"islamic_advisor_{request.session_id}",
             system_message=system_message
         ).with_model("anthropic", "claude-sonnet-4-5-20250929")
         
