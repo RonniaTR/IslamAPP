@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Query
+from fastapi import FastAPI, APIRouter, HTTPException, Query, WebSocket, WebSocketDisconnect
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -11,6 +11,7 @@ from typing import List, Optional, Dict, Any
 import uuid
 from datetime import datetime, date, timedelta
 import math
+import asyncio
 from emergentintegrations.llm.chat import LlmChat, UserMessage
 
 ROOT_DIR = Path(__file__).parent
@@ -1236,6 +1237,879 @@ async def get_preferences(user_id: str):
     if not prefs:
         return UserPreferences(user_id=user_id)
     return UserPreferences(**prefs)
+
+# ===================== QUIZ SYSTEM API =====================
+from quiz_data import QUIZ_CATEGORIES, QUIZ_QUESTIONS, get_questions_for_category
+import random
+
+# Quiz Models
+class CreateQuizRoomRequest(BaseModel):
+    user_id: str
+    username: str
+    category: str
+    room_name: str
+    question_count: int = 10
+    time_per_question: int = 20
+
+class JoinQuizRoomRequest(BaseModel):
+    user_id: str
+    username: str
+
+class SubmitQuizAnswerRequest(BaseModel):
+    user_id: str
+    question_index: int
+    answer: int
+    time_taken: float
+
+class StartQuizRequest(BaseModel):
+    user_id: str
+
+# Quiz Endpoints
+@api_router.get("/quiz/categories")
+async def get_quiz_categories():
+    """Get all quiz categories"""
+    return QUIZ_CATEGORIES
+
+@api_router.get("/quiz/questions/{category}")
+async def get_quiz_questions(category: str, count: int = 10):
+    """Get random questions for a category"""
+    questions = get_questions_for_category(category)
+    if not questions:
+        raise HTTPException(status_code=404, detail="Category not found")
+    
+    # Randomly select questions
+    selected = random.sample(questions, min(count, len(questions)))
+    
+    # Remove correct_answer for client (they'll get it after answering)
+    client_questions = []
+    for q in selected:
+        client_q = {**q}
+        del client_q["correct_answer"]
+        del client_q["explanation"]
+        del client_q["source"]
+        client_questions.append(client_q)
+    
+    return client_questions
+
+@api_router.post("/quiz/rooms/create")
+async def create_quiz_room(request: CreateQuizRoomRequest):
+    """Create a new quiz room"""
+    # Get questions for this category
+    all_questions = get_questions_for_category(request.category)
+    if not all_questions:
+        raise HTTPException(status_code=404, detail="Category not found")
+    
+    selected_questions = random.sample(all_questions, min(request.question_count, len(all_questions)))
+    
+    room = {
+        "id": str(uuid.uuid4()),
+        "name": request.room_name,
+        "category": request.category,
+        "host_id": request.user_id,
+        "host_name": request.username,
+        "players": [{
+            "user_id": request.user_id,
+            "username": request.username,
+            "score": 0,
+            "answers": [],
+            "correct_count": 0
+        }],
+        "status": "waiting",
+        "current_question": 0,
+        "questions": selected_questions,
+        "max_players": 4,
+        "question_count": len(selected_questions),
+        "time_per_question": request.time_per_question,
+        "created_at": datetime.utcnow(),
+        "started_at": None,
+        "finished_at": None
+    }
+    
+    await db.quiz_rooms.insert_one(room)
+    
+    # Return room without answers
+    safe_room = {
+        "id": room["id"],
+        "name": room["name"],
+        "category": room["category"],
+        "host_id": room["host_id"],
+        "host_name": room["host_name"],
+        "players": room["players"],
+        "status": room["status"],
+        "current_question": room["current_question"],
+        "max_players": room["max_players"],
+        "question_count": room["question_count"],
+        "time_per_question": room["time_per_question"],
+        "created_at": room["created_at"].isoformat(),
+        "started_at": room["started_at"].isoformat() if room["started_at"] else None,
+        "finished_at": room["finished_at"].isoformat() if room["finished_at"] else None,
+        "questions": [{
+            "id": q["id"],
+            "question": q["question"],
+            "options": q["options"],
+            "difficulty": q["difficulty"],
+            "points": q["points"]
+        } for q in room["questions"]]
+    }
+    
+    return safe_room
+
+@api_router.get("/quiz/rooms")
+async def get_quiz_rooms(category: Optional[str] = None, status: str = "waiting"):
+    """Get available quiz rooms"""
+    query = {"status": status}
+    if category:
+        query["category"] = category
+    
+    rooms = await db.quiz_rooms.find(query).sort("created_at", -1).limit(20).to_list(20)
+    
+    # Return rooms without question answers
+    safe_rooms = []
+    for room in rooms:
+        safe_room = {
+            "id": room["id"],
+            "name": room["name"],
+            "category": room["category"],
+            "host_name": room["host_name"],
+            "player_count": len(room.get("players", [])),
+            "max_players": room.get("max_players", 4),
+            "question_count": room.get("question_count", 10),
+            "status": room["status"],
+            "created_at": room["created_at"]
+        }
+        safe_rooms.append(safe_room)
+    
+    return safe_rooms
+
+@api_router.get("/quiz/rooms/{room_id}")
+async def get_quiz_room(room_id: str):
+    """Get a specific quiz room"""
+    room = await db.quiz_rooms.find_one({"id": room_id})
+    if not room:
+        raise HTTPException(status_code=404, detail="Room not found")
+    
+    # Return room without correct answers unless game is finished
+    safe_room = {
+        "id": room["id"],
+        "name": room["name"],
+        "category": room["category"],
+        "host_id": room["host_id"],
+        "host_name": room["host_name"],
+        "players": room.get("players", []),
+        "status": room["status"],
+        "current_question": room.get("current_question", 0),
+        "question_count": room.get("question_count", 10),
+        "time_per_question": room.get("time_per_question", 20),
+        "max_players": room.get("max_players", 4),
+        "created_at": room["created_at"],
+        "started_at": room.get("started_at"),
+        "finished_at": room.get("finished_at")
+    }
+    
+    # Include questions based on game state
+    if room["status"] == "finished":
+        safe_room["questions"] = room.get("questions", [])
+    else:
+        safe_room["questions"] = [{
+            "id": q["id"],
+            "question": q["question"],
+            "options": q["options"],
+            "difficulty": q.get("difficulty", "medium"),
+            "points": q.get("points", 10)
+        } for q in room.get("questions", [])]
+    
+    return safe_room
+
+@api_router.post("/quiz/rooms/{room_id}/join")
+async def join_quiz_room(room_id: str, request: JoinQuizRoomRequest):
+    """Join a quiz room"""
+    room = await db.quiz_rooms.find_one({"id": room_id})
+    if not room:
+        raise HTTPException(status_code=404, detail="Room not found")
+    
+    if room["status"] != "waiting":
+        raise HTTPException(status_code=400, detail="Game already started")
+    
+    if len(room.get("players", [])) >= room.get("max_players", 4):
+        raise HTTPException(status_code=400, detail="Room is full")
+    
+    # Check if already joined
+    for player in room.get("players", []):
+        if player["user_id"] == request.user_id:
+            return {"message": "Already in room", "room": room}
+    
+    # Add player
+    new_player = {
+        "user_id": request.user_id,
+        "username": request.username,
+        "score": 0,
+        "answers": [],
+        "correct_count": 0
+    }
+    
+    await db.quiz_rooms.update_one(
+        {"id": room_id},
+        {"$push": {"players": new_player}}
+    )
+    
+    return {"message": "Joined successfully"}
+
+@api_router.post("/quiz/rooms/{room_id}/start")
+async def start_quiz_game(room_id: str, request: StartQuizRequest):
+    """Start the quiz game"""
+    room = await db.quiz_rooms.find_one({"id": room_id})
+    if not room:
+        raise HTTPException(status_code=404, detail="Room not found")
+    
+    if room["host_id"] != request.user_id:
+        raise HTTPException(status_code=403, detail="Only host can start the game")
+    
+    if room["status"] != "waiting":
+        raise HTTPException(status_code=400, detail="Game already started")
+    
+    await db.quiz_rooms.update_one(
+        {"id": room_id},
+        {"$set": {
+            "status": "playing",
+            "started_at": datetime.utcnow(),
+            "current_question": 0
+        }}
+    )
+    
+    return {"message": "Game started"}
+
+@api_router.post("/quiz/rooms/{room_id}/answer")
+async def submit_quiz_answer(room_id: str, request: SubmitQuizAnswerRequest):
+    """Submit an answer for a question"""
+    room = await db.quiz_rooms.find_one({"id": room_id})
+    if not room:
+        raise HTTPException(status_code=404, detail="Room not found")
+    
+    if room["status"] != "playing":
+        raise HTTPException(status_code=400, detail="Game not in progress")
+    
+    questions = room.get("questions", [])
+    if request.question_index >= len(questions):
+        raise HTTPException(status_code=400, detail="Invalid question index")
+    
+    question = questions[request.question_index]
+    is_correct = request.answer == question["correct_answer"]
+    
+    # Calculate points based on correctness and time
+    points = 0
+    if is_correct:
+        base_points = question.get("points", 10)
+        time_bonus = max(0, (room.get("time_per_question", 20) - request.time_taken) / room.get("time_per_question", 20))
+        points = int(base_points * (1 + time_bonus * 0.5))
+    
+    # Update player's score and answers
+    players = room.get("players", [])
+    for i, player in enumerate(players):
+        if player["user_id"] == request.user_id:
+            players[i]["score"] += points
+            players[i]["answers"].append({
+                "question_index": request.question_index,
+                "answer": request.answer,
+                "correct": is_correct,
+                "points": points,
+                "time_taken": request.time_taken
+            })
+            if is_correct:
+                players[i]["correct_count"] = players[i].get("correct_count", 0) + 1
+            break
+    
+    await db.quiz_rooms.update_one(
+        {"id": room_id},
+        {"$set": {"players": players}}
+    )
+    
+    return {
+        "correct": is_correct,
+        "points_earned": points,
+        "correct_answer": question["correct_answer"],
+        "explanation": question.get("explanation", ""),
+        "source": question.get("source", "")
+    }
+
+@api_router.post("/quiz/rooms/{room_id}/next")
+async def next_question(room_id: str):
+    """Move to next question"""
+    room = await db.quiz_rooms.find_one({"id": room_id})
+    if not room:
+        raise HTTPException(status_code=404, detail="Room not found")
+    
+    current = room.get("current_question", 0)
+    total = len(room.get("questions", []))
+    
+    if current + 1 >= total:
+        # Game finished
+        await db.quiz_rooms.update_one(
+            {"id": room_id},
+            {"$set": {
+                "status": "finished",
+                "finished_at": datetime.utcnow()
+            }}
+        )
+        
+        # Update player stats
+        for player in room.get("players", []):
+            await update_player_quiz_stats(player["user_id"], room)
+        
+        return {"status": "finished", "current_question": current}
+    else:
+        await db.quiz_rooms.update_one(
+            {"id": room_id},
+            {"$set": {"current_question": current + 1}}
+        )
+        return {"status": "playing", "current_question": current + 1}
+
+@api_router.post("/quiz/rooms/{room_id}/finish")
+async def finish_quiz_game(room_id: str):
+    """Finish the quiz game"""
+    room = await db.quiz_rooms.find_one({"id": room_id})
+    if not room:
+        raise HTTPException(status_code=404, detail="Room not found")
+    
+    await db.quiz_rooms.update_one(
+        {"id": room_id},
+        {"$set": {
+            "status": "finished",
+            "finished_at": datetime.utcnow()
+        }}
+    )
+    
+    # Update player stats
+    for player in room.get("players", []):
+        await update_player_quiz_stats(player["user_id"], room)
+    
+    # Get updated room
+    room = await db.quiz_rooms.find_one({"id": room_id})
+    
+    return room
+
+async def update_player_quiz_stats(user_id: str, room: dict):
+    """Update player's overall quiz statistics"""
+    stats = await db.quiz_stats.find_one({"user_id": user_id})
+    
+    player_data = None
+    for p in room.get("players", []):
+        if p["user_id"] == user_id:
+            player_data = p
+            break
+    
+    if not player_data:
+        return
+    
+    # Determine if player won
+    max_score = max(p["score"] for p in room.get("players", []))
+    won = player_data["score"] == max_score
+    
+    if stats:
+        update_data = {
+            "total_games": stats.get("total_games", 0) + 1,
+            "total_points": stats.get("total_points", 0) + player_data["score"],
+            "correct_answers": stats.get("correct_answers", 0) + player_data.get("correct_count", 0),
+            "total_answers": stats.get("total_answers", 0) + len(player_data.get("answers", [])),
+            "last_played": datetime.utcnow()
+        }
+        if won:
+            update_data["games_won"] = stats.get("games_won", 0) + 1
+        
+        # Update category stats
+        categories = stats.get("categories_played", {})
+        cat = room.get("category", "other")
+        categories[cat] = categories.get(cat, 0) + 1
+        update_data["categories_played"] = categories
+        
+        await db.quiz_stats.update_one(
+            {"user_id": user_id},
+            {"$set": update_data}
+        )
+    else:
+        new_stats = {
+            "user_id": user_id,
+            "total_games": 1,
+            "games_won": 1 if won else 0,
+            "total_points": player_data["score"],
+            "correct_answers": player_data.get("correct_count", 0),
+            "total_answers": len(player_data.get("answers", [])),
+            "best_streak": 0,
+            "current_streak": 0,
+            "categories_played": {room.get("category", "other"): 1},
+            "last_played": datetime.utcnow()
+        }
+        await db.quiz_stats.insert_one(new_stats)
+
+@api_router.get("/quiz/stats/{user_id}")
+async def get_quiz_stats(user_id: str):
+    """Get user's quiz statistics"""
+    stats = await db.quiz_stats.find_one({"user_id": user_id})
+    if not stats:
+        return {
+            "user_id": user_id,
+            "total_games": 0,
+            "games_won": 0,
+            "total_points": 0,
+            "correct_answers": 0,
+            "total_answers": 0,
+            "accuracy": 0,
+            "categories_played": {},
+            "last_played": None
+        }
+    
+    accuracy = 0
+    if stats.get("total_answers", 0) > 0:
+        accuracy = round(stats.get("correct_answers", 0) / stats["total_answers"] * 100, 1)
+    
+    return {
+        "user_id": user_id,
+        "total_games": stats.get("total_games", 0),
+        "games_won": stats.get("games_won", 0),
+        "total_points": stats.get("total_points", 0),
+        "correct_answers": stats.get("correct_answers", 0),
+        "total_answers": stats.get("total_answers", 0),
+        "accuracy": accuracy,
+        "categories_played": stats.get("categories_played", {}),
+        "last_played": stats.get("last_played")
+    }
+
+@api_router.get("/quiz/leaderboard")
+async def get_quiz_leaderboard(limit: int = 20):
+    """Get global quiz leaderboard"""
+    stats = await db.quiz_stats.find().sort("total_points", -1).limit(limit).to_list(limit)
+    
+    leaderboard = []
+    for i, s in enumerate(stats):
+        accuracy = 0
+        if s.get("total_answers", 0) > 0:
+            accuracy = round(s.get("correct_answers", 0) / s["total_answers"] * 100, 1)
+        
+        leaderboard.append({
+            "rank": i + 1,
+            "user_id": s["user_id"],
+            "total_points": s.get("total_points", 0),
+            "games_won": s.get("games_won", 0),
+            "total_games": s.get("total_games", 0),
+            "accuracy": accuracy
+        })
+    
+    return leaderboard
+
+@api_router.get("/quiz/leaderboard/category/{category}")
+async def get_category_leaderboard(category: str, limit: int = 20):
+    """Get leaderboard for a specific category"""
+    # This would need more complex aggregation, simplified version:
+    all_stats = await db.quiz_stats.find().to_list(1000)
+    
+    # Filter and sort by category
+    category_stats = []
+    for s in all_stats:
+        cat_games = s.get("categories_played", {}).get(category, 0)
+        if cat_games > 0:
+            category_stats.append({
+                "user_id": s["user_id"],
+                "games": cat_games,
+                "total_points": s.get("total_points", 0)
+            })
+    
+    category_stats.sort(key=lambda x: x["total_points"], reverse=True)
+    
+    return category_stats[:limit]
+
+# ===================== SOLO QUIZ MODE =====================
+
+@api_router.post("/quiz/solo/start")
+async def start_solo_quiz(user_id: str, category: str, question_count: int = 10):
+    """Start a solo quiz session"""
+    questions = get_questions_for_category(category)
+    if not questions:
+        raise HTTPException(status_code=404, detail="Category not found")
+    
+    selected = random.sample(questions, min(question_count, len(questions)))
+    
+    session = {
+        "id": str(uuid.uuid4()),
+        "user_id": user_id,
+        "category": category,
+        "questions": selected,
+        "current_question": 0,
+        "score": 0,
+        "correct_count": 0,
+        "answers": [],
+        "status": "playing",
+        "created_at": datetime.utcnow()
+    }
+    
+    await db.quiz_solo_sessions.insert_one(session)
+    
+    # Return without answers
+    return {
+        "session_id": session["id"],
+        "category": category,
+        "question_count": len(selected),
+        "questions": [{
+            "id": q["id"],
+            "question": q["question"],
+            "options": q["options"],
+            "difficulty": q.get("difficulty", "medium"),
+            "points": q.get("points", 10)
+        } for q in selected]
+    }
+
+@api_router.post("/quiz/solo/{session_id}/answer")
+async def submit_solo_answer(session_id: str, question_index: int, answer: int, time_taken: float):
+    """Submit answer for solo quiz"""
+    session = await db.quiz_solo_sessions.find_one({"id": session_id})
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    questions = session.get("questions", [])
+    if question_index >= len(questions):
+        raise HTTPException(status_code=400, detail="Invalid question index")
+    
+    question = questions[question_index]
+    is_correct = answer == question["correct_answer"]
+    
+    points = 0
+    if is_correct:
+        base_points = question.get("points", 10)
+        time_bonus = max(0, (20 - time_taken) / 20)
+        points = int(base_points * (1 + time_bonus * 0.5))
+    
+    # Update session
+    await db.quiz_solo_sessions.update_one(
+        {"id": session_id},
+        {
+            "$inc": {"score": points, "correct_count": 1 if is_correct else 0},
+            "$push": {"answers": {
+                "question_index": question_index,
+                "answer": answer,
+                "correct": is_correct,
+                "points": points,
+                "time_taken": time_taken
+            }}
+        }
+    )
+    
+    return {
+        "correct": is_correct,
+        "points_earned": points,
+        "correct_answer": question["correct_answer"],
+        "explanation": question.get("explanation", ""),
+        "source": question.get("source", "")
+    }
+
+@api_router.post("/quiz/solo/{session_id}/finish")
+async def finish_solo_quiz(session_id: str):
+    """Finish solo quiz and update stats"""
+    session = await db.quiz_solo_sessions.find_one({"id": session_id})
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    await db.quiz_solo_sessions.update_one(
+        {"id": session_id},
+        {"$set": {"status": "finished", "finished_at": datetime.utcnow()}}
+    )
+    
+    # Update user stats
+    user_id = session["user_id"]
+    stats = await db.quiz_stats.find_one({"user_id": user_id})
+    
+    if stats:
+        categories = stats.get("categories_played", {})
+        cat = session.get("category", "other")
+        categories[cat] = categories.get(cat, 0) + 1
+        
+        await db.quiz_stats.update_one(
+            {"user_id": user_id},
+            {"$set": {
+                "total_games": stats.get("total_games", 0) + 1,
+                "total_points": stats.get("total_points", 0) + session.get("score", 0),
+                "correct_answers": stats.get("correct_answers", 0) + session.get("correct_count", 0),
+                "total_answers": stats.get("total_answers", 0) + len(session.get("answers", [])),
+                "categories_played": categories,
+                "last_played": datetime.utcnow()
+            }}
+        )
+    else:
+        await db.quiz_stats.insert_one({
+            "user_id": user_id,
+            "total_games": 1,
+            "games_won": 0,
+            "total_points": session.get("score", 0),
+            "correct_answers": session.get("correct_count", 0),
+            "total_answers": len(session.get("answers", [])),
+            "categories_played": {session.get("category", "other"): 1},
+            "last_played": datetime.utcnow()
+        })
+    
+    return {
+        "session_id": session_id,
+        "score": session.get("score", 0),
+        "correct_count": session.get("correct_count", 0),
+        "total_questions": len(session.get("questions", [])),
+        "questions": session.get("questions", [])
+    }
+
+# ===================== WEBSOCKET QUIZ MANAGER =====================
+
+class QuizWebSocketManager:
+    def __init__(self):
+        # room_id -> {user_id: websocket}
+        self.active_connections: Dict[str, Dict[str, WebSocket]] = {}
+        # room_id -> room_data
+        self.rooms: Dict[str, Dict] = {}
+    
+    async def connect(self, websocket: WebSocket, room_id: str, user_id: str):
+        await websocket.accept()
+        if room_id not in self.active_connections:
+            self.active_connections[room_id] = {}
+        self.active_connections[room_id][user_id] = websocket
+        logger.info(f"User {user_id} connected to room {room_id}")
+    
+    def disconnect(self, room_id: str, user_id: str):
+        if room_id in self.active_connections:
+            if user_id in self.active_connections[room_id]:
+                del self.active_connections[room_id][user_id]
+            if not self.active_connections[room_id]:
+                del self.active_connections[room_id]
+        logger.info(f"User {user_id} disconnected from room {room_id}")
+    
+    async def send_to_user(self, room_id: str, user_id: str, message: dict):
+        if room_id in self.active_connections:
+            if user_id in self.active_connections[room_id]:
+                try:
+                    await self.active_connections[room_id][user_id].send_json(message)
+                except Exception as e:
+                    logger.error(f"Error sending to user {user_id}: {e}")
+    
+    async def broadcast_to_room(self, room_id: str, message: dict, exclude_user: str = None):
+        if room_id in self.active_connections:
+            for user_id, websocket in self.active_connections[room_id].items():
+                if exclude_user and user_id == exclude_user:
+                    continue
+                try:
+                    await websocket.send_json(message)
+                except Exception as e:
+                    logger.error(f"Error broadcasting to user {user_id}: {e}")
+    
+    def get_room_users(self, room_id: str) -> List[str]:
+        if room_id in self.active_connections:
+            return list(self.active_connections[room_id].keys())
+        return []
+
+quiz_ws_manager = QuizWebSocketManager()
+
+@app.websocket("/api/quiz/ws/{room_id}/{user_id}")
+async def quiz_websocket(websocket: WebSocket, room_id: str, user_id: str):
+    """WebSocket endpoint for real-time quiz"""
+    await quiz_ws_manager.connect(websocket, room_id, user_id)
+    
+    try:
+        # Notify room about new player
+        room = await db.quiz_rooms.find_one({"id": room_id})
+        if room:
+            await quiz_ws_manager.broadcast_to_room(room_id, {
+                "type": "player_joined",
+                "user_id": user_id,
+                "players": room.get("players", []),
+                "player_count": len(room.get("players", []))
+            })
+        
+        while True:
+            data = await websocket.receive_json()
+            message_type = data.get("type")
+            
+            if message_type == "ping":
+                await websocket.send_json({"type": "pong"})
+            
+            elif message_type == "start_game":
+                # Host starts the game
+                room = await db.quiz_rooms.find_one({"id": room_id})
+                if room and room.get("host_id") == user_id:
+                    await db.quiz_rooms.update_one(
+                        {"id": room_id},
+                        {"$set": {
+                            "status": "playing",
+                            "started_at": datetime.utcnow(),
+                            "current_question": 0
+                        }}
+                    )
+                    
+                    # Get first question (without answer)
+                    questions = room.get("questions", [])
+                    first_q = None
+                    if questions:
+                        q = questions[0]
+                        first_q = {
+                            "index": 0,
+                            "question": q["question"],
+                            "options": q["options"],
+                            "difficulty": q.get("difficulty", "medium"),
+                            "points": q.get("points", 10)
+                        }
+                    
+                    await quiz_ws_manager.broadcast_to_room(room_id, {
+                        "type": "game_started",
+                        "current_question": 0,
+                        "total_questions": len(questions),
+                        "question": first_q,
+                        "time_per_question": room.get("time_per_question", 20)
+                    })
+            
+            elif message_type == "submit_answer":
+                question_index = data.get("question_index", 0)
+                answer = data.get("answer", -1)
+                time_taken = data.get("time_taken", 20)
+                
+                room = await db.quiz_rooms.find_one({"id": room_id})
+                if room and room.get("status") == "playing":
+                    questions = room.get("questions", [])
+                    if question_index < len(questions):
+                        question = questions[question_index]
+                        is_correct = answer == question["correct_answer"]
+                        
+                        # Calculate points
+                        points = 0
+                        if is_correct:
+                            base_points = question.get("points", 10)
+                            time_bonus = max(0, (room.get("time_per_question", 20) - time_taken) / room.get("time_per_question", 20))
+                            points = int(base_points * (1 + time_bonus * 0.5))
+                        
+                        # Update player score
+                        players = room.get("players", [])
+                        for i, player in enumerate(players):
+                            if player["user_id"] == user_id:
+                                players[i]["score"] += points
+                                players[i]["answers"].append({
+                                    "question_index": question_index,
+                                    "answer": answer,
+                                    "correct": is_correct,
+                                    "points": points,
+                                    "time_taken": time_taken
+                                })
+                                if is_correct:
+                                    players[i]["correct_count"] = players[i].get("correct_count", 0) + 1
+                                break
+                        
+                        await db.quiz_rooms.update_one(
+                            {"id": room_id},
+                            {"$set": {"players": players}}
+                        )
+                        
+                        # Send result to the user
+                        await quiz_ws_manager.send_to_user(room_id, user_id, {
+                            "type": "answer_result",
+                            "correct": is_correct,
+                            "points_earned": points,
+                            "correct_answer": question["correct_answer"],
+                            "explanation": question.get("explanation", ""),
+                            "source": question.get("source", "")
+                        })
+                        
+                        # Broadcast updated scores
+                        await quiz_ws_manager.broadcast_to_room(room_id, {
+                            "type": "scores_updated",
+                            "players": [{
+                                "user_id": p["user_id"],
+                                "username": p["username"],
+                                "score": p["score"],
+                                "correct_count": p.get("correct_count", 0)
+                            } for p in players]
+                        })
+            
+            elif message_type == "next_question":
+                # Only host can move to next question
+                room = await db.quiz_rooms.find_one({"id": room_id})
+                if room and room.get("host_id") == user_id:
+                    current = room.get("current_question", 0)
+                    questions = room.get("questions", [])
+                    
+                    if current + 1 >= len(questions):
+                        # Game finished
+                        await db.quiz_rooms.update_one(
+                            {"id": room_id},
+                            {"$set": {
+                                "status": "finished",
+                                "finished_at": datetime.utcnow()
+                            }}
+                        )
+                        
+                        # Update player stats
+                        for player in room.get("players", []):
+                            await update_player_quiz_stats(player["user_id"], room)
+                        
+                        # Get final standings
+                        players = sorted(room.get("players", []), key=lambda p: p["score"], reverse=True)
+                        
+                        await quiz_ws_manager.broadcast_to_room(room_id, {
+                            "type": "game_finished",
+                            "players": players,
+                            "winner": players[0] if players else None
+                        })
+                    else:
+                        # Move to next question
+                        new_index = current + 1
+                        await db.quiz_rooms.update_one(
+                            {"id": room_id},
+                            {"$set": {"current_question": new_index}}
+                        )
+                        
+                        q = questions[new_index]
+                        next_q = {
+                            "index": new_index,
+                            "question": q["question"],
+                            "options": q["options"],
+                            "difficulty": q.get("difficulty", "medium"),
+                            "points": q.get("points", 10)
+                        }
+                        
+                        await quiz_ws_manager.broadcast_to_room(room_id, {
+                            "type": "next_question",
+                            "current_question": new_index,
+                            "total_questions": len(questions),
+                            "question": next_q
+                        })
+            
+            elif message_type == "leave_room":
+                # Player leaves the room
+                room = await db.quiz_rooms.find_one({"id": room_id})
+                if room:
+                    players = [p for p in room.get("players", []) if p["user_id"] != user_id]
+                    await db.quiz_rooms.update_one(
+                        {"id": room_id},
+                        {"$set": {"players": players}}
+                    )
+                    
+                    await quiz_ws_manager.broadcast_to_room(room_id, {
+                        "type": "player_left",
+                        "user_id": user_id,
+                        "players": players
+                    }, exclude_user=user_id)
+                
+                break
+            
+            elif message_type == "chat":
+                # Simple chat in room
+                await quiz_ws_manager.broadcast_to_room(room_id, {
+                    "type": "chat",
+                    "user_id": user_id,
+                    "message": data.get("message", "")
+                })
+    
+    except WebSocketDisconnect:
+        quiz_ws_manager.disconnect(room_id, user_id)
+        
+        # Notify others about disconnect
+        room = await db.quiz_rooms.find_one({"id": room_id})
+        if room:
+            await quiz_ws_manager.broadcast_to_room(room_id, {
+                "type": "player_disconnected",
+                "user_id": user_id
+            })
+    except Exception as e:
+        logger.error(f"WebSocket error: {e}")
+        quiz_ws_manager.disconnect(room_id, user_id)
 
 # Include router
 app.include_router(api_router)
