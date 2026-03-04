@@ -14,9 +14,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import Constants from 'expo-constants';
 
-const API_BASE = Constants.expoConfig?.extra?.EXPO_PUBLIC_BACKEND_URL || 'https://islamic-life-assistant-backend.preview.emergentagent.com';
+const API_BASE = process.env.EXPO_PUBLIC_BACKEND_URL || '';
 
 interface QuizCategory {
   id: string;
@@ -409,7 +408,6 @@ export default function QuizScreen() {
 function LeaderboardList({ userId }: { userId: string }) {
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const API_BASE = Constants.expoConfig?.extra?.EXPO_PUBLIC_BACKEND_URL || 'https://islamic-life-assistant-backend.preview.emergentagent.com';
 
   useEffect(() => {
     fetchLeaderboard();
@@ -417,7 +415,8 @@ function LeaderboardList({ userId }: { userId: string }) {
 
   const fetchLeaderboard = async () => {
     try {
-      const response = await fetch(`${API_BASE}/api/quiz/leaderboard?limit=20`);
+      const baseUrl = process.env.EXPO_PUBLIC_BACKEND_URL || '';
+      const response = await fetch(`${baseUrl}/api/quiz/leaderboard?limit=20`);
       if (response.ok) {
         const data = await response.json();
         setLeaderboard(data);
