@@ -5,6 +5,7 @@ import { View, StyleSheet } from 'react-native';
 import { ThemeProvider, useTheme } from '../contexts/ThemeContext';
 import { LanguageProvider } from '../contexts/LanguageContext';
 import { MusicProvider } from '../contexts/MusicContext';
+import { AuthProvider } from '../contexts/AuthContext';
 
 function RootLayoutContent() {
   const { colors, theme } = useTheme();
@@ -20,6 +21,7 @@ function RootLayoutContent() {
         }}
       >
         <Stack.Screen name="index" />
+        <Stack.Screen name="login" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="quiz-game" options={{ headerShown: false }} />
         <Stack.Screen name="quiz-solo" options={{ headerShown: false }} />
@@ -35,7 +37,9 @@ export default function RootLayout() {
     <ThemeProvider>
       <LanguageProvider>
         <MusicProvider>
-          <RootLayoutContent />
+          <AuthProvider>
+            <RootLayoutContent />
+          </AuthProvider>
         </MusicProvider>
       </LanguageProvider>
     </ThemeProvider>

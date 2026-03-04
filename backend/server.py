@@ -1,4 +1,5 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Query, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, APIRouter, HTTPException, Query, WebSocket, WebSocketDisconnect, Response, Request, Cookie
+from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -9,9 +10,10 @@ from pathlib import Path
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 import uuid
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, timezone
 import math
 import asyncio
+import httpx
 from emergentintegrations.llm.chat import LlmChat, UserMessage
 from comparative_religions import COMPARATIVE_TEXTS, TOPICS, get_comparative_data, get_all_topics, search_comparative
 
@@ -64,6 +66,10 @@ db = client[os.environ['DB_NAME']]
 # LLM Key
 EMERGENT_LLM_KEY = os.environ.get('EMERGENT_LLM_KEY', '')
 
+# Auth Config
+EMERGENT_AUTH_URL = "https://demobackend.emergentagent.com/auth/v1/env/oauth/session-data"
+SESSION_EXPIRY_DAYS = 7
+
 # Create the main app
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
@@ -76,6 +82,32 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # ===================== MODELS =====================
+
+# Auth Models
+class UserCreate(BaseModel):
+    email: str
+    name: str
+    picture: Optional[str] = None
+
+class User(BaseModel):
+    user_id: str
+    email: str
+    name: str
+    picture: Optional[str] = None
+    is_guest: bool = False
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    language: str = "tr"
+    theme: str = "dark"
+    total_points: int = 0
+    quizzes_played: int = 0
+    streak_days: int = 0
+
+class UserSession(BaseModel):
+    session_id: str
+    user_id: str
+    session_token: str
+    expires_at: datetime
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class StatusCheck(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
@@ -592,6 +624,213 @@ def get_earned_badges(stats: dict) -> List[str]:
 @api_router.get("/")
 async def root():
     return {"message": "İslami Yaşam Asistanı API", "version": "2.0"}
+
+# ===================== AUTHENTICATION API =====================
+
+async def get_current_user(request: Request, session_token: Optional[str] = Cookie(None)) -> Optional[User]:
+    """Get current authenticated user from cookie or header"""
+    token = session_token
+    
+    # Fallback to Authorization header
+    if not token:
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            token = auth_header.split(" ")[1]
+    
+    if not token:
+        return None
+    
+    # Find session
+    session = await db.user_sessions.find_one({"session_token": token}, {"_id": 0})
+    if not session:
+        return None
+    
+    # Check expiry
+    expires_at = session.get("expires_at")
+    if isinstance(expires_at, str):
+        expires_at = datetime.fromisoformat(expires_at)
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    if expires_at < datetime.now(timezone.utc):
+        return None
+    
+    # Get user
+    user = await db.users.find_one({"user_id": session["user_id"]}, {"_id": 0})
+    if user:
+        return User(**user)
+    return None
+
+@api_router.post("/auth/session")
+async def exchange_session(session_id: str, response: Response):
+    """Exchange session_id from OAuth callback for session token"""
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(
+                EMERGENT_AUTH_URL,
+                headers={"X-Session-ID": session_id},
+                timeout=10.0
+            )
+            
+            if resp.status_code != 200:
+                raise HTTPException(status_code=401, detail="Invalid session")
+            
+            auth_data = resp.json()
+            email = auth_data.get("email")
+            name = auth_data.get("name")
+            picture = auth_data.get("picture")
+            session_token = auth_data.get("session_token")
+            
+            # Check if user exists
+            existing_user = await db.users.find_one({"email": email}, {"_id": 0})
+            
+            if existing_user:
+                user_id = existing_user["user_id"]
+                # Update user info
+                await db.users.update_one(
+                    {"user_id": user_id},
+                    {"$set": {"name": name, "picture": picture}}
+                )
+            else:
+                # Create new user
+                user_id = f"user_{uuid.uuid4().hex[:12]}"
+                new_user = {
+                    "user_id": user_id,
+                    "email": email,
+                    "name": name,
+                    "picture": picture,
+                    "is_guest": False,
+                    "created_at": datetime.now(timezone.utc),
+                    "language": "tr",
+                    "theme": "dark",
+                    "total_points": 0,
+                    "quizzes_played": 0,
+                    "streak_days": 0
+                }
+                await db.users.insert_one(new_user)
+            
+            # Create session
+            expires_at = datetime.now(timezone.utc) + timedelta(days=SESSION_EXPIRY_DAYS)
+            session_doc = {
+                "session_id": str(uuid.uuid4()),
+                "user_id": user_id,
+                "session_token": session_token,
+                "expires_at": expires_at,
+                "created_at": datetime.now(timezone.utc)
+            }
+            await db.user_sessions.insert_one(session_doc)
+            
+            # Set cookie
+            response.set_cookie(
+                key="session_token",
+                value=session_token,
+                httponly=True,
+                secure=True,
+                samesite="none",
+                path="/",
+                max_age=SESSION_EXPIRY_DAYS * 24 * 60 * 60
+            )
+            
+            # Get user data
+            user = await db.users.find_one({"user_id": user_id}, {"_id": 0})
+            return user
+            
+    except httpx.RequestError as e:
+        logger.error(f"Auth error: {e}")
+        raise HTTPException(status_code=500, detail="Authentication service error")
+
+@api_router.post("/auth/guest")
+async def create_guest_user(response: Response):
+    """Create a guest user for quick access"""
+    user_id = f"guest_{uuid.uuid4().hex[:12]}"
+    session_token = f"guest_session_{uuid.uuid4().hex}"
+    
+    new_user = {
+        "user_id": user_id,
+        "email": f"{user_id}@guest.local",
+        "name": "Misafir Kullanıcı",
+        "picture": None,
+        "is_guest": True,
+        "created_at": datetime.now(timezone.utc),
+        "language": "tr",
+        "theme": "dark",
+        "total_points": 0,
+        "quizzes_played": 0,
+        "streak_days": 0
+    }
+    await db.users.insert_one(new_user)
+    
+    # Create session
+    expires_at = datetime.now(timezone.utc) + timedelta(days=SESSION_EXPIRY_DAYS)
+    session_doc = {
+        "session_id": str(uuid.uuid4()),
+        "user_id": user_id,
+        "session_token": session_token,
+        "expires_at": expires_at,
+        "created_at": datetime.now(timezone.utc)
+    }
+    await db.user_sessions.insert_one(session_doc)
+    
+    # Set cookie
+    response.set_cookie(
+        key="session_token",
+        value=session_token,
+        httponly=True,
+        secure=True,
+        samesite="none",
+        path="/",
+        max_age=SESSION_EXPIRY_DAYS * 24 * 60 * 60
+    )
+    
+    return new_user
+
+@api_router.get("/auth/me")
+async def get_current_user_info(request: Request, session_token: Optional[str] = Cookie(None)):
+    """Get current authenticated user info"""
+    user = await get_current_user(request, session_token)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    return user.dict()
+
+@api_router.post("/auth/logout")
+async def logout(request: Request, response: Response, session_token: Optional[str] = Cookie(None)):
+    """Logout and clear session"""
+    if session_token:
+        await db.user_sessions.delete_one({"session_token": session_token})
+    
+    response.delete_cookie(key="session_token", path="/")
+    return {"message": "Logged out successfully"}
+
+@api_router.put("/auth/profile")
+async def update_profile(
+    request: Request,
+    language: Optional[str] = None,
+    theme: Optional[str] = None,
+    name: Optional[str] = None,
+    session_token: Optional[str] = Cookie(None)
+):
+    """Update user profile settings"""
+    user = await get_current_user(request, session_token)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    update_data = {}
+    if language:
+        update_data["language"] = language
+    if theme:
+        update_data["theme"] = theme
+    if name:
+        update_data["name"] = name
+    
+    if update_data:
+        await db.users.update_one(
+            {"user_id": user.user_id},
+            {"$set": update_data}
+        )
+    
+    updated_user = await db.users.find_one({"user_id": user.user_id}, {"_id": 0})
+    return updated_user
+
+# ===================== STATUS CHECK API =====================
 
 @api_router.post("/status", response_model=StatusCheck)
 async def create_status_check(input: StatusCheckCreate):

@@ -404,19 +404,21 @@ export default function QuizScreen() {
   );
 }
 
-// Leaderboard Component
+// Leaderboard Component with Filters
 function LeaderboardList({ userId }: { userId: string }) {
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<'all' | 'weekly' | 'monthly'>('all');
 
   useEffect(() => {
     fetchLeaderboard();
-  }, []);
+  }, [filter]);
 
   const fetchLeaderboard = async () => {
     try {
+      setLoading(true);
       const baseUrl = process.env.EXPO_PUBLIC_BACKEND_URL || '';
-      const response = await fetch(`${baseUrl}/api/quiz/leaderboard?limit=20`);
+      const response = await fetch(`${baseUrl}/api/quiz/leaderboard?limit=20&period=${filter}`);
       if (response.ok) {
         const data = await response.json();
         setLeaderboard(data);
@@ -428,53 +430,121 @@ function LeaderboardList({ userId }: { userId: string }) {
     }
   };
 
+  const getCountryFlag = (index: number): string => {
+    const flags = ['🇹🇷', '🇸🇦', '🇪🇬', '🇮🇩', '🇵🇰', '🇲🇾', '🇦🇪', '🇶🇦'];
+    return flags[index % flags.length];
+  };
+
   if (loading) {
     return <ActivityIndicator size="small" color="#10b981" />;
   }
 
-  if (leaderboard.length === 0) {
-    return (
-      <View style={styles.emptyState}>
-        <Ionicons name="trophy-outline" size={48} color="#64748b" />
-        <Text style={styles.emptyText}>Henüz sıralama yok</Text>
-        <Text style={styles.emptySubtext}>İlk quiz'i tamamlayan sen ol!</Text>
-      </View>
-    );
-  }
-
   return (
     <View>
-      {leaderboard.map((player, index) => (
-        <View 
-          key={player.user_id} 
-          style={[
-            styles.leaderboardItem,
-            player.user_id === userId && styles.currentUserItem
-          ]}
+      {/* Filter Tabs */}
+      <View style={styles.filterTabs}>
+        <TouchableOpacity
+          style={[styles.filterTab, filter === 'all' && styles.filterTabActive]}
+          onPress={() => setFilter('all')}
         >
-          <View style={styles.rankContainer}>
-            {index < 3 ? (
-              <Ionicons 
-                name="trophy" 
-                size={24} 
-                color={index === 0 ? '#fbbf24' : index === 1 ? '#94a3b8' : '#cd7f32'} 
-              />
-            ) : (
-              <Text style={styles.rankText}>{index + 1}</Text>
-            )}
-          </View>
-          <View style={styles.playerInfo}>
-            <Text style={styles.playerName}>{player.user_id.substring(0, 8)}...</Text>
-            <Text style={styles.playerStats}>
-              {player.games_won} galibiyet • %{player.accuracy} doğruluk
-            </Text>
-          </View>
-          <View style={styles.pointsContainer}>
-            <Text style={styles.pointsText}>{player.total_points}</Text>
-            <Text style={styles.pointsLabel}>puan</Text>
-          </View>
+          <Text style={[styles.filterTabText, filter === 'all' && styles.filterTabTextActive]}>
+            Tümü
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.filterTab, filter === 'weekly' && styles.filterTabActive]}
+          onPress={() => setFilter('weekly')}
+        >
+          <Text style={[styles.filterTabText, filter === 'weekly' && styles.filterTabTextActive]}>
+            Bu Hafta
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.filterTab, filter === 'monthly' && styles.filterTabActive]}
+          onPress={() => setFilter('monthly')}
+        >
+          <Text style={[styles.filterTabText, filter === 'monthly' && styles.filterTabTextActive]}>
+            Bu Ay
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {leaderboard.length === 0 ? (
+        <View style={styles.emptyState}>
+          <Ionicons name="trophy-outline" size={48} color="#64748b" />
+          <Text style={styles.emptyText}>Henüz sıralama yok</Text>
+          <Text style={styles.emptySubtext}>İlk quiz'i tamamlayan sen ol!</Text>
         </View>
-      ))}
+      ) : (
+        <>
+          {/* Top 3 Podium */}
+          {leaderboard.length >= 3 && (
+            <View style={styles.podiumContainer}>
+              {/* 2nd Place */}
+              <View style={styles.podiumItem}>
+                <View style={[styles.podiumAvatar, styles.podiumSecond]}>
+                  <Text style={styles.podiumAvatarText}>🥈</Text>
+                </View>
+                <Text style={styles.podiumName} numberOfLines={1}>
+                  {leaderboard[1]?.user_id?.substring(0, 6)}
+                </Text>
+                <Text style={styles.podiumPoints}>{leaderboard[1]?.total_points || 0}</Text>
+                <View style={[styles.podiumBar, styles.podiumBarSecond]} />
+              </View>
+              
+              {/* 1st Place */}
+              <View style={styles.podiumItem}>
+                <View style={[styles.podiumAvatar, styles.podiumFirst]}>
+                  <Text style={styles.podiumAvatarText}>👑</Text>
+                </View>
+                <Text style={styles.podiumName} numberOfLines={1}>
+                  {leaderboard[0]?.user_id?.substring(0, 6)}
+                </Text>
+                <Text style={styles.podiumPoints}>{leaderboard[0]?.total_points || 0}</Text>
+                <View style={[styles.podiumBar, styles.podiumBarFirst]} />
+              </View>
+              
+              {/* 3rd Place */}
+              <View style={styles.podiumItem}>
+                <View style={[styles.podiumAvatar, styles.podiumThird]}>
+                  <Text style={styles.podiumAvatarText}>🥉</Text>
+                </View>
+                <Text style={styles.podiumName} numberOfLines={1}>
+                  {leaderboard[2]?.user_id?.substring(0, 6)}
+                </Text>
+                <Text style={styles.podiumPoints}>{leaderboard[2]?.total_points || 0}</Text>
+                <View style={[styles.podiumBar, styles.podiumBarThird]} />
+              </View>
+            </View>
+          )}
+
+          {/* Rest of leaderboard */}
+          {leaderboard.slice(3).map((player, index) => (
+            <View 
+              key={player.user_id} 
+              style={[
+                styles.leaderboardItem,
+                player.user_id === userId && styles.currentUserItem
+              ]}
+            >
+              <View style={styles.rankContainer}>
+                <Text style={styles.rankText}>{index + 4}</Text>
+              </View>
+              <Text style={styles.countryFlag}>{getCountryFlag(index)}</Text>
+              <View style={styles.playerInfo}>
+                <Text style={styles.playerName}>{player.user_id.substring(0, 8)}...</Text>
+                <Text style={styles.playerStats}>
+                  {player.games_won || 0} galibiyet • %{player.accuracy || 0} doğruluk
+                </Text>
+              </View>
+              <View style={styles.pointsContainer}>
+                <Text style={styles.pointsText}>{player.total_points || 0}</Text>
+                <Text style={styles.pointsLabel}>puan</Text>
+              </View>
+            </View>
+          ))}
+        </>
+      )}
     </View>
   );
 }
@@ -803,5 +873,97 @@ const styles = StyleSheet.create({
   pointsLabel: {
     fontSize: 10,
     color: '#64748b',
+  },
+  // New Leaderboard Styles
+  filterTabs: {
+    flexDirection: 'row',
+    backgroundColor: '#1e293b',
+    borderRadius: 10,
+    padding: 4,
+    marginBottom: 16,
+  },
+  filterTab: {
+    flex: 1,
+    paddingVertical: 8,
+    alignItems: 'center',
+    borderRadius: 8,
+  },
+  filterTabActive: {
+    backgroundColor: '#10b981',
+  },
+  filterTabText: {
+    color: '#64748b',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  filterTabTextActive: {
+    color: '#fff',
+  },
+  podiumContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'flex-end',
+    marginBottom: 24,
+    paddingTop: 20,
+  },
+  podiumItem: {
+    alignItems: 'center',
+    width: '30%',
+  },
+  podiumAvatar: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  podiumFirst: {
+    backgroundColor: '#fbbf24',
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+  },
+  podiumSecond: {
+    backgroundColor: '#94a3b8',
+  },
+  podiumThird: {
+    backgroundColor: '#cd7f32',
+  },
+  podiumAvatarText: {
+    fontSize: 24,
+  },
+  podiumName: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  podiumPoints: {
+    color: '#10b981',
+    fontSize: 14,
+    fontWeight: '700',
+    marginBottom: 8,
+  },
+  podiumBar: {
+    width: '80%',
+    borderTopLeftRadius: 8,
+    borderTopRightRadius: 8,
+  },
+  podiumBarFirst: {
+    height: 80,
+    backgroundColor: '#fbbf2440',
+  },
+  podiumBarSecond: {
+    height: 60,
+    backgroundColor: '#94a3b840',
+  },
+  podiumBarThird: {
+    height: 50,
+    backgroundColor: '#cd7f3240',
+  },
+  countryFlag: {
+    fontSize: 18,
+    marginRight: 8,
   },
 });
