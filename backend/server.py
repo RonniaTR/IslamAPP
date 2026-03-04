@@ -13,19 +13,30 @@ from datetime import datetime, date, timedelta
 import math
 import asyncio
 from emergentintegrations.llm.chat import LlmChat, UserMessage
+from comparative_religions import COMPARATIVE_TEXTS, TOPICS, get_comparative_data, get_all_topics, search_comparative
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
+# ===================== QURAN AUDIO URLS =====================
+# Free Quran Audio API - Al-Afasy Recitation
+QURAN_AUDIO_BASE = "https://cdn.islamic.network/quran/audio/128/ar.alafasy"
+
+def get_audio_url(surah: int, ayah: int) -> str:
+    """Get audio URL for a specific verse"""
+    return f"{QURAN_AUDIO_BASE}/{surah}{str(ayah).zfill(3)}.mp3"
+
 # ===================== LOAD QURAN DATA =====================
 QURAN_ARABIC = None
 QURAN_TURKISH = None
+QURAN_ENGLISH = None
 
 def load_quran_data():
-    global QURAN_ARABIC, QURAN_TURKISH
+    global QURAN_ARABIC, QURAN_TURKISH, QURAN_ENGLISH
     try:
         arabic_path = ROOT_DIR / 'data' / 'quran_arabic.json'
         turkish_path = ROOT_DIR / 'data' / 'quran_turkish.json'
+        english_path = ROOT_DIR / 'data' / 'quran_english.json'
         
         if arabic_path.exists():
             with open(arabic_path, 'r', encoding='utf-8') as f:
@@ -35,7 +46,11 @@ def load_quran_data():
             with open(turkish_path, 'r', encoding='utf-8') as f:
                 QURAN_TURKISH = json.load(f)['data']['surahs']
         
-        print(f"Loaded Quran data: {len(QURAN_ARABIC) if QURAN_ARABIC else 0} surahs")
+        if english_path.exists():
+            with open(english_path, 'r', encoding='utf-8') as f:
+                QURAN_ENGLISH = json.load(f)['data']['surahs']
+        
+        print(f"Loaded Quran data: {len(QURAN_ARABIC) if QURAN_ARABIC else 0} surahs (AR), {len(QURAN_TURKISH) if QURAN_TURKISH else 0} (TR), {len(QURAN_ENGLISH) if QURAN_ENGLISH else 0} (EN)")
     except Exception as e:
         print(f"Error loading Quran data: {e}")
 
@@ -735,23 +750,26 @@ async def get_surahs():
     return surahs
 
 @api_router.get("/quran/surah/{surah_number}")
-async def get_surah(surah_number: int):
-    """Get surah details with all verses"""
+async def get_surah(surah_number: int, lang: str = "tr"):
+    """Get surah details with all verses and audio URLs"""
     if not QURAN_ARABIC or surah_number < 1 or surah_number > 114:
         raise HTTPException(status_code=404, detail="Surah not found")
     
     arabic_surah = QURAN_ARABIC[surah_number - 1]
     turkish_surah = QURAN_TURKISH[surah_number - 1] if QURAN_TURKISH else None
+    english_surah = QURAN_ENGLISH[surah_number - 1] if QURAN_ENGLISH else None
     
     verses = []
     for i, ayah in enumerate(arabic_surah['ayahs']):
         verse = {
             "number": ayah['numberInSurah'],
             "arabic": ayah['text'],
-            "turkish": turkish_surah['ayahs'][i]['text'] if turkish_surah else "",
+            "turkish": turkish_surah['ayahs'][i]['text'] if turkish_surah and i < len(turkish_surah['ayahs']) else "",
+            "english": english_surah['ayahs'][i]['text'] if english_surah and i < len(english_surah['ayahs']) else "",
             "page": ayah.get('page', 0),
             "juz": ayah.get('juz', 0),
-            "hizbQuarter": ayah.get('hizbQuarter', 0)
+            "hizbQuarter": ayah.get('hizbQuarter', 0),
+            "audio_url": get_audio_url(surah_number, ayah['numberInSurah'])
         }
         verses.append(verse)
     
@@ -762,7 +780,8 @@ async def get_surah(surah_number: int):
         "meaning": arabic_surah.get('englishNameTranslation', ''),
         "revelation": "Mekke" if arabic_surah.get('revelationType') == 'Meccan' else "Medine",
         "total_verses": len(verses),
-        "verses": verses
+        "verses": verses,
+        "full_audio_url": f"https://cdn.islamic.network/quran/audio-surah/128/ar.alafasy/{surah_number}.mp3"
     }
 
 @api_router.get("/quran/verse/{surah_number}/{verse_number}")
@@ -1237,6 +1256,80 @@ async def get_preferences(user_id: str):
     if not prefs:
         return UserPreferences(user_id=user_id)
     return UserPreferences(**prefs)
+
+# ===================== COMPARATIVE RELIGIONS API =====================
+
+@api_router.get("/comparative/topics")
+async def get_comparative_topics():
+    """Get all available comparative religion topics"""
+    return get_all_topics()
+
+@api_router.get("/comparative/topic/{topic_id}")
+async def get_comparative_topic(topic_id: str):
+    """Get comparative texts for a specific topic"""
+    data = get_comparative_data(topic_id)
+    if not data:
+        raise HTTPException(status_code=404, detail="Topic not found")
+    return data
+
+@api_router.get("/comparative/search")
+async def search_comparative_texts(query: str = Query(..., min_length=2)):
+    """Search across all comparative religious texts"""
+    results = search_comparative(query)
+    return {"query": query, "count": len(results), "results": results}
+
+@api_router.post("/comparative/ai-compare")
+async def ai_compare_religions(topic: str, question: str = None):
+    """AI-powered comparative analysis using Claude"""
+    topic_data = get_comparative_data(topic)
+    
+    if not EMERGENT_LLM_KEY:
+        # Return static comparison if no API key
+        if topic_data:
+            return {
+                "topic": topic,
+                "comparison": topic_data,
+                "ai_analysis": "AI analizi için EMERGENT_LLM_KEY gereklidir."
+            }
+        raise HTTPException(status_code=400, detail="Topic not found")
+    
+    try:
+        chat = LlmChat(
+            api_key=EMERGENT_LLM_KEY,
+            model="claude-sonnet-4-20250514"
+        )
+        
+        prompt = f"""Sen bir karşılaştırmalı dinler uzmanısın. Aşağıdaki konu hakkında farklı dinlerin görüşlerini karşılaştır:
+
+Konu: {topic_data.get('topic', topic) if topic_data else topic}
+
+{'Soru: ' + question if question else ''}
+
+Lütfen şu formatı kullan:
+1. Kuran'ın Görüşü: (ayet referansı ile)
+2. İncil'in Görüşü: (kitap ve bölüm referansı ile)
+3. Tevrat'ın Görüşü: (kitap ve bölüm referansı ile)
+4. Hadis'in Görüşü: (kaynak ile)
+5. Ortak Noktalar
+6. Farklılıklar
+
+Cevaplarını Türkçe ver ve kaynaklara dikkat et."""
+
+        response = await chat.send_async(UserMessage(text=prompt))
+        
+        return {
+            "topic": topic,
+            "question": question,
+            "static_data": topic_data,
+            "ai_analysis": response.text
+        }
+    except Exception as e:
+        logger.error(f"AI comparison error: {e}")
+        return {
+            "topic": topic,
+            "comparison": topic_data,
+            "ai_analysis": f"AI analizi sırasında hata oluştu: {str(e)}"
+        }
 
 # ===================== QUIZ SYSTEM API =====================
 from quiz_data import QUIZ_CATEGORIES, QUIZ_QUESTIONS, get_questions_for_category

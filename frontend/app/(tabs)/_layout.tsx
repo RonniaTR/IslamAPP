@@ -60,6 +60,15 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="comparative"
+        options={{
+          title: 'Karşılaştır',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="git-compare" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="profile"
         options={{
           title: 'Profil',
