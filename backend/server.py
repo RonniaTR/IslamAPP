@@ -20,13 +20,100 @@ from comparative_religions import COMPARATIVE_TEXTS, TOPICS, get_comparative_dat
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
-# ===================== QURAN AUDIO URLS =====================
-# Free Quran Audio API - Al-Afasy Recitation
-QURAN_AUDIO_BASE = "https://cdn.islamic.network/quran/audio/128/ar.alafasy"
+# ===================== QURAN AUDIO RECITERS =====================
+# Free Quran Audio API - Multiple Reciters from alquran.cloud
+QURAN_RECITERS = {
+    "alafasy": {
+        "id": "ar.alafasy",
+        "name": "Mishary Rashid Alafasy",
+        "name_ar": "مشاري راشد العفاسي",
+        "style": "Murattal",
+        "quality": 128
+    },
+    "abdulbasit": {
+        "id": "ar.abdulbasitmurattal",
+        "name": "Abdul Basit Abdul Samad",
+        "name_ar": "عبد الباسط عبد الصمد",
+        "style": "Murattal",
+        "quality": 192
+    },
+    "abdulbasit_mujawwad": {
+        "id": "ar.abdulsamad",
+        "name": "Abdul Basit (Mujawwad)",
+        "name_ar": "عبد الباسط - مجود",
+        "style": "Mujawwad",
+        "quality": 64
+    },
+    "husary": {
+        "id": "ar.husary",
+        "name": "Mahmoud Khalil Al-Husary",
+        "name_ar": "محمود خليل الحصري",
+        "style": "Murattal",
+        "quality": 128
+    },
+    "minshawi": {
+        "id": "ar.minshawi",
+        "name": "Mohamed Siddiq Al-Minshawi",
+        "name_ar": "محمد صديق المنشاوي",
+        "style": "Murattal",
+        "quality": 128
+    },
+    "sudais": {
+        "id": "ar.abdurrahmaansudais",
+        "name": "Abdurrahman As-Sudais",
+        "name_ar": "عبدالرحمن السديس",
+        "style": "Murattal",
+        "quality": 192
+    },
+    "shuraim": {
+        "id": "ar.saabormohamad",
+        "name": "Saud Al-Shuraim",
+        "name_ar": "سعود الشريم",
+        "style": "Murattal",
+        "quality": 64
+    },
+    "ghamdi": {
+        "id": "ar.ghamadi",
+        "name": "Saad Al-Ghamdi",
+        "name_ar": "سعد الغامدي",
+        "style": "Murattal",
+        "quality": 128
+    }
+}
 
-def get_audio_url(surah: int, ayah: int) -> str:
-    """Get audio URL for a specific verse"""
-    return f"{QURAN_AUDIO_BASE}/{surah}{str(ayah).zfill(3)}.mp3"
+# English Translation Audio
+ENGLISH_RECITERS = {
+    "sahih_intl": {
+        "id": "en.sahih",
+        "name": "Sahih International",
+        "language": "en"
+    },
+    "ibrahim_walk": {
+        "id": "en.walk",
+        "name": "Ibrahim Walk",
+        "language": "en"
+    }
+}
+
+def get_audio_url(surah: int, ayah: int, reciter: str = "alafasy") -> str:
+    """Get audio URL for a specific verse with selected reciter"""
+    reciter_info = QURAN_RECITERS.get(reciter, QURAN_RECITERS["alafasy"])
+    quality = reciter_info["quality"]
+    reciter_id = reciter_info["id"]
+    # Calculate verse number (global ayah number)
+    verse_num = ayah
+    if surah > 1:
+        # Add previous surah verse counts
+        verse_counts = [7,286,200,176,120,165,206,75,129,109,123,111,43,52,99,128,111,110,98,135,112,78,118,64,77,227,93,88,69,60,34,30,73,54,45,83,182,88,75,85,54,53,89,59,37,35,38,29,18,45,60,49,62,55,78,96,29,22,24,13,14,11,11,18,12,12,30,52,52,44,28,28,20,56,40,31,50,40,46,42,29,19,36,25,22,17,19,26,30,20,15,21,11,8,8,19,5,8,8,11,11,8,3,9,5,4,7,3,6,3,5,4,5,6]
+        verse_num = sum(verse_counts[:surah-1]) + ayah
+    return f"https://cdn.islamic.network/quran/audio/{quality}/{reciter_id}/{verse_num}.mp3"
+
+def get_surah_audio_url(surah: int, reciter: str = "alafasy") -> str:
+    """Get full surah audio URL"""
+    reciter_info = QURAN_RECITERS.get(reciter, QURAN_RECITERS["alafasy"])
+    quality = reciter_info["quality"]
+    reciter_id = reciter_info["id"]
+    return f"https://cdn.islamic.network/quran/audio-surah/{quality}/{reciter_id}/{surah}.mp3"
 
 # ===================== LOAD QURAN DATA =====================
 QURAN_ARABIC = None
@@ -968,6 +1055,20 @@ CEVAP FORMATI:
 
 # ===================== QURAN API (FULL DATA) =====================
 
+@api_router.get("/quran/reciters")
+async def get_reciters():
+    """Get list of available Quran reciters"""
+    reciters = []
+    for key, reciter in QURAN_RECITERS.items():
+        reciters.append({
+            "id": key,
+            "name": reciter["name"],
+            "name_ar": reciter["name_ar"],
+            "style": reciter["style"],
+            "quality": reciter["quality"]
+        })
+    return reciters
+
 @api_router.get("/quran/surahs")
 async def get_surahs():
     """Get list of all 114 surahs with metadata"""
@@ -989,8 +1090,8 @@ async def get_surahs():
     return surahs
 
 @api_router.get("/quran/surah/{surah_number}")
-async def get_surah(surah_number: int, lang: str = "tr"):
-    """Get surah details with all verses and audio URLs"""
+async def get_surah(surah_number: int, lang: str = "tr", reciter: str = "alafasy"):
+    """Get surah details with all verses and audio URLs for selected reciter"""
     if not QURAN_ARABIC or surah_number < 1 or surah_number > 114:
         raise HTTPException(status_code=404, detail="Surah not found")
     
@@ -998,17 +1099,21 @@ async def get_surah(surah_number: int, lang: str = "tr"):
     turkish_surah = QURAN_TURKISH[surah_number - 1] if QURAN_TURKISH else None
     english_surah = QURAN_ENGLISH[surah_number - 1] if QURAN_ENGLISH else None
     
+    reciter_info = QURAN_RECITERS.get(reciter, QURAN_RECITERS["alafasy"])
+    
     verses = []
     for i, ayah in enumerate(arabic_surah['ayahs']):
         verse = {
             "number": ayah['numberInSurah'],
+            "global_number": ayah.get('number', 0),
             "arabic": ayah['text'],
             "turkish": turkish_surah['ayahs'][i]['text'] if turkish_surah and i < len(turkish_surah['ayahs']) else "",
             "english": english_surah['ayahs'][i]['text'] if english_surah and i < len(english_surah['ayahs']) else "",
             "page": ayah.get('page', 0),
             "juz": ayah.get('juz', 0),
             "hizbQuarter": ayah.get('hizbQuarter', 0),
-            "audio_url": get_audio_url(surah_number, ayah['numberInSurah'])
+            "audio_url": get_audio_url(surah_number, ayah['numberInSurah'], reciter),
+            "sajda": ayah.get('sajda', False)
         }
         verses.append(verse)
     
@@ -1020,7 +1125,8 @@ async def get_surah(surah_number: int, lang: str = "tr"):
         "revelation": "Mekke" if arabic_surah.get('revelationType') == 'Meccan' else "Medine",
         "total_verses": len(verses),
         "verses": verses,
-        "full_audio_url": f"https://cdn.islamic.network/quran/audio-surah/128/ar.alafasy/{surah_number}.mp3"
+        "reciter": reciter_info,
+        "full_audio_url": get_surah_audio_url(surah_number, reciter)
     }
 
 @api_router.get("/quran/verse/{surah_number}/{verse_number}")

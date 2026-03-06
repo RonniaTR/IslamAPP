@@ -10,7 +10,7 @@ import time
 from datetime import datetime
 
 # Configuration
-BACKEND_URL = "https://faith-connect-210.preview.emergentagent.com/api"
+BACKEND_URL = "https://deen-companion-38.preview.emergentagent.com/api"
 TEST_SESSION_ID = "test_session_islamic_001"
 TEST_USER_ID = "test_user_islamic_001"
 
