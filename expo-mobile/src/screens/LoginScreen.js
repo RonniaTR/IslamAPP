@@ -1,10 +1,10 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 
-export default function LoginScreen({ navigation }) {
+export default function LoginScreen({ navigation, onLogin }) {
   const handleLogin = () => {
-    // We will hook this up to the auth context later
-    console.log('Login pressed');
+    // Navigate immediately for demo purposes
+    if (onLogin) onLogin();
   };
 
   return (

@@ -10,7 +10,7 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <StatusBar style="light" />
-      <AppNavigator user={user} />
+      <AppNavigator user={user} onLogin={() => setUser(true)} />
     </SafeAreaProvider>
   );
 }

@@ -57,12 +57,14 @@ function MainTabs() {
   );
 }
 
-export default function AppNavigator({ user }) {
+export default function AppNavigator({ user, onLogin }) {
   return (
     <NavigationContainer>
       <Stack.Navigator screenOptions={{ headerShown: false, cardStyle: { backgroundColor: '#0A1F14' } }}>
         {!user ? (
-          <Stack.Screen name="Login" component={LoginScreen} />
+          <Stack.Screen name="Login">
+            {props => <LoginScreen {...props} onLogin={onLogin} />}
+          </Stack.Screen>
         ) : (
           <>
             <Stack.Screen name="MainTabs" component={MainTabs} />
