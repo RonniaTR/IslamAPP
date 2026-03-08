@@ -1,0 +1,174 @@
+[
+  {
+    "id": "tarihte_bugun",
+    "title": "İslam Tarihinde Bugün",
+    "icon": "📜",
+    "color": "#D4AF37",
+    "items": [
+      {"title": "Bedir Savaşı (624)", "content": "Hicretin 2. yılında Müslümanların ilk büyük zaferi. 313 kişilik İslam ordusu, 1000 kişilik Kureyş ordusunu yendi. Bu zafer İslam tarihinin dönüm noktasıdır. Cebrail (a.s.) meleklerle yardım etti."},
+      {"title": "Mekke'nin Fethi (630)", "content": "Hicretin 8. yılında Hz. Muhammed (s.a.v.) 10.000 kişilik orduyla Mekke'ye girdi. Kan dökülmeden gerçekleşen bu fetih, İslam'ın barışçıl yayılışının simgesidir. Kabe putlardan temizlendi."},
+      {"title": "Kudüs'ün Fethi (637)", "content": "Hz. Ömer döneminde Kudüs fethedildi. Hz. Ömer bizzat anahtarları teslim aldı ve diğer dinlerin ibadethanelerine dokunulmamasını emretti. Bu hoşgörü dünya tarihinde eşsiz bir örnektir."},
+      {"title": "İstanbul'un Fethi (1453)", "content": "Sultan II. Mehmed, Hz. Peygamber'in müjdelediği fethi gerçekleştirdi. 'Ne güzel kumandan, ne güzel asker' hadisini yaşattı. Haliç'ten gemiler karadan yürütüldü."},
+      {"title": "Uhud Savaşı (625)", "content": "Okçuların yerlerini terk etmesi sonucu Müslümanlar ağır kayıp verdi. Hz. Hamza şehit oldu. Bu savaş itaat ve disiplinin önemini öğretti."},
+      {"title": "Hendek Savaşı (627)", "content": "Selman-ı Farisi'nin önerisiyle Medine etrafına hendek kazıldı. 10.000 kişilik düşman ordusu hendek stratejisine karşı çaresiz kaldı. Akıl ve strateji ile savunma yapıldı."},
+      {"title": "Hudeybiye Antlaşması (628)", "content": "Görünürde dezavantajlı olan bu anlaşma, Kur'an'da 'apaçık bir fetih' olarak nitelendi. Barış ortamı İslam'ın hızla yayılmasını sağladı."},
+      {"title": "Taif Kuşatması (630)", "content": "Mekke'nin fethinden sonra Taif üzerine yürüyen Müslümanlar kuşatmayı kaldırdı. Taif halkı daha sonra kendi istekleriyle Müslüman oldu."},
+      {"title": "Miraç Gecesi", "content": "Hz. Muhammed (s.a.v.) Mescid-i Haram'dan Mescid-i Aksa'ya, oradan da göklere yükseltildi. Beş vakit namaz bu gecede farz kılındı. Sidretü'l-Münteha'ya kadar çıkıldı."},
+      {"title": "Hicret (622)", "content": "Hz. Muhammed (s.a.v.) ve Hz. Ebu Bekir Mekke'den Medine'ye hicret etti. Sevr Mağarası'nda saklandılar. Bu olay İslam takviminin başlangıcıdır."},
+      {"title": "Endülüs'ün Fethi (711)", "content": "Tarık bin Ziyad İspanya'yı fethetti. Cebelitarık (Tarık'ın Dağı) onun adını taşır. Endülüs 800 yıl İslam medeniyetinin merkezi oldu."},
+      {"title": "Haçlı Seferlerine Karşı Zafer", "content": "Selahaddin Eyyubi 1187'de Kudüs'ü geri aldı. Halka merhamet gösterdi, intikam almadı. Bu asalet düşmanlarının bile hayranlığını kazandı."},
+      {"title": "Moğol İstilası ve İslam", "content": "Moğollar Bağdat'ı yakıp yıktı (1258) ama zamanla İslam'ı kabul ettiler. Yıkımdan sonra İslam daha geniş coğrafyalara yayıldı."},
+      {"title": "Osmanlı'nın Kuruluşu (1299)", "content": "Osman Gazi'nin kurduğu beylik, 6 asır sürecek bir imparatorluğa dönüştü. İslam'ın son büyük devleti olarak 3 kıtaya hükmetti."}
+    ]
+  },
+  {
+    "id": "peygamber_hikmeti",
+    "title": "Peygamberlerden Hikmet",
+    "icon": "🕌",
+    "color": "#E8C84A",
+    "items": [
+      {"title": "Hz. Yusuf'un Sabrı", "content": "Kuyuya atıldı, köle olarak satıldı, hapse girdi ama asla Allah'a olan güvenini kaybetmedi. Sonunda Mısır'ın hazine bakanı oldu. Sabır her zaman meyve verir."},
+      {"title": "Hz. İbrahim'in Teslimiyeti", "content": "Ateşe atıldığında 'Hasbünallahü ve ni'mel vekil' dedi. Allah ateşi gül bahçesine çevirdi. Teslimiyet en büyük güçtür."},
+      {"title": "Hz. Eyyüb'ün Sabrı", "content": "Yıllarca hastalıkla sınandı ama hiçbir zaman şikayetçi olmadı. 'Bana zarar dokundu, sen merhametlilerin en merhametlisisin' diye dua etti."},
+      {"title": "Hz. Musa'nın Cesareti", "content": "Firavun'un sarayında büyümesine rağmen hakkı söylemekten çekinmedi. Denizi yararak kavmini kurtardı. Cesaret imanın meyvesidir."},
+      {"title": "Hz. Nuh'un Azmi", "content": "950 yıl boyunca kavmini İslam'a davet etti. Çok az kişi iman etti ama o vazgeçmedi. Gemiyi çölde inşa etti, alay edenlere aldırış etmedi."},
+      {"title": "Hz. Süleyman'ın Hikmeti", "content": "Hem peygamber hem hükümdardı. Rüzgara, cinlere ve kuşlara hükmediyordu. Ama asla kibirlenmedi. 'Bu Rabbimin lütfundandır' dedi."},
+      {"title": "Hz. Davud'un Tevbesi", "content": "Güzel sesiyle Allah'ı tesbih ederdi, dağlar ve kuşlar ona eşlik ederdi. Hata yaptığında hemen secdeye kapandı ve tevbe etti. Tevbe kapısı her zaman açıktır."},
+      {"title": "Hz. İsmail'in Teslimiyeti", "content": "Babası Hz. İbrahim tarafından kurban edilmek üzereyken 'Babacığım, sana emredileni yap' dedi. Bu teslimiyet Kurban Bayramı'nın kaynağıdır."},
+      {"title": "Hz. Yunus ve Balığın Karnı", "content": "Kavmini terk edince balığın karnına düştü. Karanlıklar içinde 'Senden başka ilah yoktur, ben zalimlerden oldum' diye dua etti. Allah onu kurtardı."},
+      {"title": "Hz. Muhammed'in Merhameti", "content": "Taif'te taşlandığında bile beddua etmedi. 'Allahım, onları bağışla, çünkü bilmiyorlar' dedi. En büyük güç, öfke anında merhamet gösterebilmektir."},
+      {"title": "Hz. Lut'un Sabrı", "content": "Kavminin büyük günahlarına karşı yıllarca uyardı. Sonunda Allah kavmi helak etti. Doğru yolda yalnız kalmak, yanlışta kalabalık olmaktan iyidir."},
+      {"title": "Hz. Yakub'un Hasreti", "content": "Oğlu Yusuf'u kaybettikten sonra yıllarca ağladı, gözleri görünmez oldu. Ama 'Ben hüznümü ve kederimi yalnızca Allah'a arz ederim' dedi."},
+      {"title": "Hz. Şuayb'ın Adaleti", "content": "Kavmine ticaret ahlakını öğretti. 'Ölçüyü ve tartıyı eksik yapmayın' diye uyardı. Ticaret ahlakı dinin temelidir."},
+      {"title": "Hz. İdris'in İlmi", "content": "İlk kalem kullanan, ilk dikiş diken peygamber olarak bilinir. Yüksek bir makama yükseltildi. İlim öğrenmek her Müslüman'a farzdır."}
+    ]
+  },
+  {
+    "id": "bilgi_serisi",
+    "title": "İslam Bilgi Serisi",
+    "icon": "📚",
+    "color": "#7EC8E3",
+    "items": [
+      {"title": "Beş Vakit Namazın Hikmeti", "content": "Sabah namazı uyanıklık ve taze başlangıç, öğle namazı günün ortasında denge, ikindi namazı yorgunlukta yenilenme, akşam namazı şükür, yatsı namazı teslimiyettir."},
+      {"title": "Kur'an'ın Mucizeleri", "content": "23 yılda indi. 114 sure, 6236 ayet içerir. Edebi mucize olmasının yanı sıra bilimsel gerçeklere de işaret eder: embriyoloji, dağların hareketi, evrenin genişlemesi."},
+      {"title": "Zekatın Toplumsal Etkisi", "content": "Zekat sadece bir ibadet değil, sosyal adaleti sağlayan ekonomik bir sistemdir. Zenginlikle fakirlik arasındaki uçurumu kapatır, toplumsal dayanışmayı güçlendirir."},
+      {"title": "İslam'da Su Hakkı", "content": "Hz. Muhammed (s.a.v.) suyu satmayı yasakladı. Su herkesin hakkıdır. Bir hadiste susuz bir köpeğe su veren günahkar kadının bağışlandığı bildirilir."},
+      {"title": "İslam'da Çevre Bilinci", "content": "Kıyamet koparken bile elinde fidan varsa dikmelisin. Ağaç kesmek yasaktır savaşta bile. İsraf haramdır. İslam ilk çevreci dindir."},
+      {"title": "Hac İbadetinin Sırları", "content": "Kabe etrafında 7 tur, atomun çekirdeği etrafındaki elektronlara benzer. Safa-Merve arası koşuşturma Hz. Hacer'in çaresizlikteki gayretini temsil eder."},
+      {"title": "İslam'da Bilim Geleneği", "content": "İbn-i Sina tıpta, Harezmi cebir biliminde, İbn-i Heysem optikte öncüydü. İlk üniversite (Kayravan) Müslümanlar tarafından kuruldu."},
+      {"title": "Abdest ve Hijyen", "content": "Günde 5 kez abdest alan Müslüman, modern hijyen kurallarını 1400 yıldır uyguluyor. Misvak kullanımı diş sağlığını korur."},
+      {"title": "Oruç ve Sağlık", "content": "Modern tıp aralıklı oruç tutmanın hücre yenilenmesini (otofaji) tetiklediğini keşfetti. 2016 Nobel Tıp Ödülü otofaji araştırmasına verildi."},
+      {"title": "İslam'da Hayvan Hakları", "content": "Hz. Peygamber hayvanlara şefkatle davranılmasını emretti. Bir kediyi aç bırakan kadının cehenneme gideceği, bir köpeğe su veren adamın cennetle müjdelendiği bildirilir."},
+      {"title": "Namaz ve Meditasyon", "content": "Namazda secde anı beynin en çok kanlandığı andır. Ruku ve secde hareketleri omurga sağlığını korur. Namaz beden ve ruh sağlığını birlikte iyileştirir."},
+      {"title": "Kur'an ve Matematik", "content": "Kur'an'da 19 sayısı özel bir yere sahiptir. Besmele 19 harftir. Sure sayısı 114=19x6. Bu matematiksel düzen ilahi korumanın delilidir."},
+      {"title": "İslam'da Ticaret Ahlakı", "content": "Hz. Muhammed (s.a.v.) 'Dürüst tüccar peygamberler, sıddıklar ve şehitlerle beraber olacaktır' buyurdu. Stokçuluk, karaborsacılık ve faiz kesinlikle yasaktır."},
+      {"title": "Sadakanın Çeşitleri", "content": "Güler yüz sadakadır, yoldan taş kaldırmak sadakadır, güzel söz sadakadır. Sadaka sadece parayla değildir. Her iyilik sadakadır."},
+      {"title": "İslam Sanatı ve Geometri", "content": "İslam sanatında insan figürü yerine geometrik desenler kullanılır. Bu desenler sonsuzluğu ve Allah'ın birliğini simgeler. Alhambra Sarayı bunun en güzel örneğidir."},
+      {"title": "Kur'an ve Deniz Bilimi", "content": "Kur'an'da 'iki deniz birbirine kavuşur ama aralarında bir engel vardır' buyurulur. Modern bilim farklı yoğunluktaki deniz sularının karışmadığını keşfetti."},
+      {"title": "İslam'da Komşu Hakkı", "content": "Hz. Peygamber 'Cebrail bana komşu hakkını o kadar tavsiye etti ki, komşuyu mirasçı yapacak sandım' buyurdu. 40 ev mesafeye kadar herkes komşudur."},
+      {"title": "İslam'da Kadın Hakları", "content": "İslam kadına mülkiyet, miras, eğitim ve boşanma hakkı tanıdı. Hz. Hatice dönemin en başarılı iş kadınıydı. Hz. Aişe 2000'den fazla hadis rivayet etti."}
+    ]
+  },
+  {
+    "id": "sahabe_hayati",
+    "title": "Sahabe Hayatı",
+    "icon": "⭐",
+    "color": "#C4A265",
+    "items": [
+      {"title": "Hz. Ebu Bekir (r.a.)", "content": "İslam'ı kabul eden ilk erkek. Tüm malını İslam için harcadı. 'Sıddık' lakabıyla anılır. Peygamberimizin en yakın dostu ve ilk halifedir."},
+      {"title": "Hz. Hatice (r.a.)", "content": "Peygamberimizin ilk eşi ve ilk Müslüman. Tüm malıyla İslam'ı destekledi. Peygamberimiz onu her zaman 'en hayırlı kadın' olarak andı."},
+      {"title": "Hz. Bilal (r.a.)", "content": "İslam'ın ilk müezzini. Köle iken İslam'ı kabul etti, ağır işkencelere maruz kaldı ama 'Ehad, Ehad (Allah bir)' demeye devam etti."},
+      {"title": "Hz. Ömer (r.a.)", "content": "İslam'a girmeden önce Müslümanlara düşmandı. İman edince İslam'ın en güçlü destekçisi oldu. Adaleti dillere destandı. Geceleri halkın halini kontrol ederdi."},
+      {"title": "Hz. Osman (r.a.)", "content": "Cömertliğiyle tanınır, Zinnureyn (iki nur sahibi) lakabıyla anılır. Peygamberimizin iki kızıyla evlendi. Kur'an'ı çoğaltarak İslam dünyasına yaydı."},
+      {"title": "Hz. Ali (r.a.)", "content": "Peygamberimizin amcaoğlu ve damadı. İslam'ı kabul eden ilk çocuk. İlim şehrinin kapısı olarak bilinir. Hem alim hem kahraman."},
+      {"title": "Hz. Fatıma (r.a.)", "content": "Peygamberimizin en sevgili kızı. Cennet kadınlarının efendisi. Sade ve mütevazı bir hayat sürdü. Hz. Ali'nin eşi, Hz. Hasan ve Hüseyin'in annesi."},
+      {"title": "Halid bin Velid (r.a.)", "content": "Allah'ın kılıcı lakaplı komutan. Müslüman olmadan önce Uhud'da Müslümanlara karşı savaştı. İman ettikten sonra hiçbir savaş kaybetmedi."},
+      {"title": "Mus'ab bin Umeyr (r.a.)", "content": "Mekke'nin en zengin genciydi. İslam'ı seçince ailesi onu reddetti. Medine'ye ilk davetçi olarak gönderildi. Uhud'da şehit düştü, kefenlenecek bezi bile yoktu."},
+      {"title": "Selman-ı Farisi (r.a.)", "content": "İran'dan gelip İslam'ı arayan adam. Yıllarca köle olarak çalıştı, sonunda Medine'de Peygamberimize kavuştu. Hendek kazma fikrini o verdi."},
+      {"title": "Ebu Zer el-Gıfari (r.a.)", "content": "İslam'ın ilk sosyalisti olarak bilinir. Zenginlerin israfına karşı çıktı. 'Evinde iki günlük yiyeceği olup da komşusu açken iman etmiş sayılmaz' derdi."},
+      {"title": "Hz. Aişe (r.a.)", "content": "İslam'ın en büyük kadın alimi. 2210 hadis rivayet etti. Sahabeler en zor fıkhi meseleleri ona danışırdı. İslam hukukunun şekillenmesinde büyük rol oynadı."},
+      {"title": "Ammar bin Yasir (r.a.)", "content": "Ailesiyle birlikte İslam'ı kabul eden ilk ailelerden. Annesi Sümeyye İslam'ın ilk kadın şehidi. İşkenceye rağmen imanından vazgeçmedi."},
+      {"title": "Abdurrahman bin Avf (r.a.)", "content": "Cennetle müjdelenen 10 sahabeden biri. Muhacir olarak Medine'ye geldiğinde hiçbir şeyi yoktu. Kısa sürede en zengin tüccarlardan oldu ama tüm servetini İslam için harcadı."}
+    ]
+  },
+  {
+    "id": "ahlak_edep",
+    "title": "İslam Ahlakı ve Edep",
+    "icon": "🌹",
+    "color": "#E07B7B",
+    "items": [
+      {"title": "Güzel Ahlakın Değeri", "content": "Hz. Peygamber 'Ben güzel ahlakı tamamlamak için gönderildim' buyurdu. Kıyamet günü mizanda en ağır basacak şey güzel ahlaktır."},
+      {"title": "Sabır ve Şükür Dengesi", "content": "Müminin hali ne güzeldir: Nimete kavuşunca şükreder, belaya uğrayınca sabreder. Her iki hali de onun için hayırdır."},
+      {"title": "Gıybet Yasağı", "content": "Kur'an gıybeti 'ölmüş kardeşinin etini yemek'e benzetir. Gıybet eden oruçlunun sevabı, hakkında konuşulan kişiye verilir."},
+      {"title": "Doğruluk ve Dürüstlük", "content": "Hz. Peygamber 'Doğruluk iyiliğe, iyilik cennete götürür. Yalan kötülüğe, kötülük cehenneme götürür' buyurdu."},
+      {"title": "Tevazu ve Alçakgönüllülük", "content": "Allah için alçakgönüllü olanı Allah yüceltir. Kibir cennetin kapısını kapatır. Zerre kadar kibir taşıyan cennete giremez."},
+      {"title": "Af ve Bağışlama", "content": "Kur'an 'Öfkelerini yutanlar ve insanları affedenleri Allah sever' buyurur. Affetmek güçsüzlük değil, en büyük güçtür."},
+      {"title": "Cömertlik", "content": "Hz. Peygamber esen rüzgardan daha cömertti. 'Veren el alan elden üstündür.' Cimrilik cehennem ateşine yaklaştırır."},
+      {"title": "Emanete Riayet", "content": "Emanete ihanet münafıklık alametidir. Sözünde durmamak, yalan söylemek ve emanete hıyanet etmek münafığın 3 özelliğidir."},
+      {"title": "Anne-Baba Hakkı", "content": "Cennet annelerin ayakları altındadır. Kur'an'da Allah'a ibadetten hemen sonra anne-babaya iyilik emredilir. Onlara 'öf' bile denmez."},
+      {"title": "İlim Öğrenmenin Fazileti", "content": "İlim öğrenmek kadın-erkek her Müslüman'a farzdır. Alimin mürekkebi, şehidin kanından değerlidir. İlim Çin'de bile olsa gidin alın."},
+      {"title": "Merhamet ve Şefkat", "content": "Merhamet etmeyene merhamet olunmaz. Hz. Peygamber kedilere, hayvanlara, bitkilere bile şefkatle davranırdı. Merhamet imandandır."},
+      {"title": "Kanaat ve Rızık", "content": "Kanaat tükenmez bir hazinedir. Az olana şükretmeyen, çok olana da şükretmez. Rızık Allah'tandır, kimse kimsenin rızkını yiyemez."}
+    ]
+  },
+  {
+    "id": "kuran_mucizeleri",
+    "title": "Kur'an Mucizeleri",
+    "icon": "✨",
+    "color": "#9B59B6",
+    "items": [
+      {"title": "Evrenin Genişlemesi", "content": "Kur'an 'Göğü biz kudretimizle bina ettik ve onu genişletmekteyiz' buyurur (Zariyat 47). Modern bilim 1929'da evrenin genişlediğini keşfetti. Kur'an 1400 yıl öncesinden bildirdi."},
+      {"title": "Parmak İzi Mucizesi", "content": "Kur'an 'Evet, parmak uçlarını bile yeniden düzenlemeye gücümüz yeter' buyurur (Kıyame 4). Her insanın parmak izi benzersizdir, bu 1880'de keşfedildi."},
+      {"title": "İki Deniz Arasındaki Engel", "content": "Kur'an 'İki denizi birbirine kavuşmak üzere salıverdi. Aralarında bir engel var, birbirlerine karışmazlar' buyurur (Rahman 19-20). Okyanus bilimi bunu doğruladı."},
+      {"title": "Demir Uzaydan Geldi", "content": "Kur'an 'Demiri de indirdik' buyurur (Hadid 25). Modern bilim demirin güneş sisteminin oluşumu sırasında uzaydan dünyaya geldiğini ortaya koydu."},
+      {"title": "Dağların Çivi Gibi Çakılması", "content": "Kur'an 'Dağları kazık (çivi) yapmadık mı?' buyurur (Nebe 7). Jeoloji dağların köklerinin yerin derinliklerine indiğini ve levhaları sabitlediğini keşfetti."},
+      {"title": "Embriyoloji ve Kur'an", "content": "Kur'an ceninin oluşum aşamalarını (nutfe, alaka, mudga) detaylıca anlatır. Bu bilgiler 20. yüzyıla kadar bilinmiyordu. Prof. Keith Moore bu mucizeleri doğruladı."},
+      {"title": "Güneşin Hareketi", "content": "Kur'an 'Güneş de kendine ait bir yörüngede akıp gider' buyurur (Yasin 38). Astronomlar güneşin galaksi içinde saatte 720.000 km hızla hareket ettiğini keşfetti."},
+      {"title": "Sayısal Mucize: Kara ve Deniz", "content": "Kur'an'da 'kara' 13, 'deniz' 32 kez geçer. 13/45=%28.8, 32/45=%71.2. Dünya yüzeyinin %29'u kara, %71'i denizdir. Matematiksel hassasiyet!"},
+      {"title": "Arıların İletişimi", "content": "Kur'an'da arı suresi vardır ve arıların iletişim kurduğu anlatılır. Karl von Frisch 1973'te arıların dans diliyle iletişim kurduğunu keşfedip Nobel aldı."},
+      {"title": "Göğün Koruyucu Çatı Olması", "content": "Kur'an 'Gökyüzünü korunmuş bir tavan yaptık' buyurur (Enbiya 32). Atmosfer bizi meteorlardan, zararlı ışınlardan ve kozmik radyasyondan korur."},
+      {"title": "Rüzgarın Aşılayıcı Olması", "content": "Kur'an 'Rüzgarları aşılayıcı olarak gönderdik' buyurur (Hicr 22). Botanik bilimi bitkilerin rüzgarla tozlaştığını 18. yüzyılda keşfetti."},
+      {"title": "Kur'an'ın Ezberlenmesi", "content": "Dünyada tamamen ezberlenen tek kitap Kur'an'dır. 14 asırdır milyonlarca hafız tek harfini bile değiştirmeden muhafaza ediyor. Bu başka hiçbir kitapta yoktur."}
+    ]
+  },
+  {
+    "id": "islam_medeniyeti",
+    "title": "İslam Medeniyeti",
+    "icon": "🏛️",
+    "color": "#2ECC71",
+    "items": [
+      {"title": "İlk Üniversite: Kayravan (859)", "content": "Dünyanın ilk üniversitesi Fas'ta Fatıma el-Fihri tarafından kuruldu. Bir kadının kurduğu bu üniversite hâlâ aktif. Oxford ve Cambridge'den yüzyıllar önce."},
+      {"title": "Cebir Biliminin Babası: Harezmi", "content": "Algoritma ve cebir kelimelerinin kaynağı. Harezmî'nin 'Kitab'ul Cebr' eseri Avrupa üniversitelerinde asırlarca ders kitabı olarak okutuldu."},
+      {"title": "Tıbbın Prensi: İbn-i Sina", "content": "El-Kanun fi't-Tıb eseri 600 yıl boyunca Avrupa'da tıp eğitiminin temel kaynağıydı. 1 milyondan fazla kelime içerir. Modern tıbbın temeli."},
+      {"title": "Optik Biliminin Kurucusu: İbn Heysem", "content": "Görme teorisini ilk doğru açıklayan bilim insanı. Karanlık oda (camera obscura) deneyiyle fotoğrafçılığın temelini attı."},
+      {"title": "Uçma Hayali: Abbas bin Firnas", "content": "Wright Kardeşlerden 1000 yıl önce uçuş denemesi yaptı. Kanatlarla uçup güvenli iniş gerçekleştirdi. Havacılığın öncüsü."},
+      {"title": "Cerrahinin Babası: Ebu'l-Kasım", "content": "200'den fazla cerrahi alet tasarladı. Kitab'üt-Tasrif eseri Avrupa'da 500 yıl cerrahi eğitiminin temel kaynağıydı."},
+      {"title": "Haritacılık: İdrisi", "content": "12. yüzyılda dünyanın en doğru haritasını çizdi. Tabula Rogeriana 300 yıl boyunca en güvenilir dünya haritası olarak kullanıldı."},
+      {"title": "Kahve Kültürü", "content": "Kahve Yemen'de Sufi dervişler tarafından keşfedildi. Osmanlı kahvehaneleri Avrupa'ya ilham verdi. Starbucks'ın atası İstanbul kahvehaneleridir."},
+      {"title": "Hastane Sistemi", "content": "İlk modern hastaneler İslam dünyasında kuruldu. Bağdat'taki Adudi Hastanesi 24 bölümlü, ücretsiz sağlık hizmeti sunuyordu."},
+      {"title": "Kütüphane Geleneği", "content": "Bağdat'taki Beytül Hikme (Bilgelik Evi) tarihin en büyük kütüphanelerindendi. Yunan, Hint ve Pers eserlerinin Arapçaya çevrildiği merkez."},
+      {"title": "Çini Sanatı", "content": "İznik çinileri dünya sanat tarihinin şaheserleridir. Geometrik desenlerin matematiksel mükemmelliği, İslam estetiğinin zirvesidir."},
+      {"title": "Astronomi ve İslam", "content": "Yıldızların büyük çoğunluğu Arapça isim taşır: Altair, Betelgeuse, Vega. Müslüman astronomlar güneş ve ay tutulmalarını hesapladı."}
+    ]
+  },
+  {
+    "id": "tasavvuf_hikmeti",
+    "title": "Tasavvuf ve Hikmet",
+    "icon": "🌊",
+    "color": "#3498DB",
+    "items": [
+      {"title": "Mevlana'dan: Gel Ne Olursan Ol", "content": "Gel, gel, ne olursan ol yine gel. İster kafir, ister mecusi, ister puta tapan ol yine gel. Bizim dergahımız umutsuzluk dergahı değildir."},
+      {"title": "Yunus Emre: Sevgi Dili", "content": "Bir kez gönül yıktın ise, bu kıldığın namaz değil. Yetmiş iki millet dahi elin yüzün yumaz değil. Gönül yapan Allah'a yakındır."},
+      {"title": "Hz. Ali'nin Hikmeti", "content": "İnsanlar iki kısımdır: ya dinde kardeşin, ya yaratılışta eşindir. Her ikisine de merhamet et."},
+      {"title": "Hacı Bektaş Veli", "content": "Eline, beline, diline sahip ol. İlimden gidilmeyen yolun sonu karanlıktır. Okunacak en büyük kitap insandır."},
+      {"title": "İmam Gazali ve Kalp İlmi", "content": "Kalp pas tutar, cilası zikrullahtır. İlim amelsiz, ağaç meyvesiz gibidir. Dünya ahiretin tarlasıdır."},
+      {"title": "Şems-i Tebrizi", "content": "Gerçek aşk acı çeker ama şikayet etmez. Aşk ile yapılan ibadet başka, korkuyla yapılan ibadet başkadır. Aşk insanı dönüştürür."},
+      {"title": "Abdülkadir Geylani", "content": "Sıdk (doğruluk) ile başlayan yolculuk, Allah'a ulaştırır. Kalbini dünyadan temizle ki Mevla'nın nuru dolsun."},
+      {"title": "İbn Arabi: Vahdet-i Vücud", "content": "Her yerde Hakk'ı gör. Sevginin dini yoktur, sevgi kendi başına bir dindir. Kalpten kalbe yol vardır."},
+      {"title": "Niyazi Mısri", "content": "Hak cihana doludur, kimseler Hakk'ı bilmez. Her şeyde Allah'ın tecellisini görmek gerçek marifetin başlangıcıdır."},
+      {"title": "Ahmed Yesevi", "content": "Türk tasavvufunun babası. Hikmet'leriyle Orta Asya'dan Anadolu'ya kadar milyonları etkiledi. 'Ey dostlar, gelin Allah'ı zikredelim' sözü dilden dile dolaşır."},
+      {"title": "Rabia-tül Adeviyye", "content": "İslam tasavvufunun ilk kadın velisi. 'Allah'ım, sana cehennem korkusundan ya da cennet arzusundan değil, sırf seni sevdiğim için ibadet ediyorum' derdi."},
+      {"title": "Hallac-ı Mansur", "content": "Enel Hak (Ben Hakk'ım) sözüyle tanınır. Bu sözü kendini Allah'a o kadar yakın hissettiğinden söyledi. Aşkın en uç noktasının simgesidir."}
+    ]
+  }
+]

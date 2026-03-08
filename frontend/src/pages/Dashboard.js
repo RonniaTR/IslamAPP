@@ -1,20 +1,56 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BookOpen, Volume2, Moon, Compass, Heart, Share2, ChevronRight, Check, Users, Mic } from 'lucide-react';
+import { BookOpen, Volume2, Moon, Compass, Heart, Share2, ChevronRight, Check, Users, Copy, Play, Pause, Loader } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLang } from '../contexts/LangContext';
 import api from '../api';
 
-// ─── Mood Section ───
+// ─── TTS Hook ───
+function useTTS() {
+  const [playing, setPlaying] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const audioRef = useRef(null);
+
+  const speak = useCallback(async (text) => {
+    if (playing && audioRef.current) { audioRef.current.pause(); audioRef.current = null; setPlaying(false); return; }
+    setLoading(true);
+    try {
+      const { data } = await api.post('/tts', { text });
+      const audio = new Audio(`data:audio/mp3;base64,${data.audio}`);
+      audioRef.current = audio;
+      audio.onended = () => { setPlaying(false); audioRef.current = null; };
+      audio.onerror = () => { setPlaying(false); audioRef.current = null; };
+      await audio.play();
+      setPlaying(true);
+    } catch { setPlaying(false); }
+    setLoading(false);
+  }, [playing]);
+
+  return { speak, playing, loading };
+}
+
+// ─── Share Helper ───
+function shareOrCopy(title, text) {
+  const full = `${title}\n\n${text}\n\n— İslami Yaşam Asistanı`;
+  if (navigator.share) {
+    navigator.share({ title, text: full }).catch(() => {});
+  } else {
+    navigator.clipboard.writeText(full).then(() => {}).catch(() => {});
+  }
+}
+
+// ─── Mood Section (horizontal scroll) ───
 function MoodSection() {
   const [selected, setSelected] = useState(null);
   const [content, setContent] = useState(null);
   const [loading, setLoading] = useState(false);
+  const tts = useTTS();
+
   const moods = [
-    { id: 'huzur', label: 'Huzur', icon: '☮️' },
-    { id: 'motivasyon', label: 'Motivasyon', icon: '🔥' },
-    { id: 'sabir', label: 'Sabır', icon: '🌿' },
-    { id: 'sukur', label: 'Şükür', icon: '✨' },
+    { id: 'huzur', label: 'Huzur', icon: '☮️', desc: 'İç huzur ve sükûnet' },
+    { id: 'motivasyon', label: 'Motivasyon', icon: '🔥', desc: 'Güç ve azim' },
+    { id: 'sabir', label: 'Sabır', icon: '🌿', desc: 'Dayanma gücü' },
+    { id: 'sukur', label: 'Şükür', icon: '✨', desc: 'Nimete şükretmek' },
   ];
 
   const handleMood = async (id) => {
@@ -28,23 +64,25 @@ function MoodSection() {
   };
 
   return (
-    <div className="mx-4 mb-5 animate-fade-in" data-testid="mood-section">
-      <p className="text-sm text-[#D4AF37] mb-3" style={{ fontFamily: 'Playfair Display, serif' }}>
+    <div className="mb-5 animate-fade-in" data-testid="mood-section">
+      <p className="text-sm text-[#D4AF37] mb-3 px-4" style={{ fontFamily: 'Playfair Display, serif' }}>
         Bugün kalbin neye ihtiyaç duyuyor?
       </p>
-      <div className="grid grid-cols-4 gap-2 mb-3">
+      {/* Horizontal scroll mood cards */}
+      <div className="flex gap-3 overflow-x-auto scrollbar-hide px-4 pb-2">
         {moods.map(m => (
           <button key={m.id} onClick={() => handleMood(m.id)} data-testid={`mood-${m.id}`}
-            className={`rounded-2xl py-2.5 text-center transition-all duration-300 ${selected === m.id ? 'scale-[1.03]' : ''}`}
+            className={`shrink-0 w-28 rounded-2xl py-3 px-2 text-center transition-all duration-300 ${selected === m.id ? 'scale-[1.03]' : ''}`}
             style={{ background: selected === m.id ? 'rgba(212,175,55,0.2)' : 'rgba(15,61,46,0.5)', border: `1px solid ${selected === m.id ? 'rgba(212,175,55,0.4)' : 'rgba(212,175,55,0.08)'}` }}>
-            <span className="text-lg block">{m.icon}</span>
-            <span className="text-[10px] text-[#F5F5DC] mt-1 block">{m.label}</span>
+            <span className="text-2xl block mb-1">{m.icon}</span>
+            <span className="text-xs font-semibold text-[#F5F5DC] block">{m.label}</span>
+            <span className="text-[9px] text-[#A8B5A0] mt-0.5 block">{m.desc}</span>
           </button>
         ))}
       </div>
-      {loading && <div className="text-center py-3"><div className="w-5 h-5 border-2 border-[#D4AF37] border-t-transparent rounded-full animate-spin mx-auto" /></div>}
+      {loading && <div className="text-center py-4"><div className="w-5 h-5 border-2 border-[#D4AF37] border-t-transparent rounded-full animate-spin mx-auto" /></div>}
       {content && !loading && (
-        <div className="card-islamic rounded-2xl p-4 animate-fade-in" data-testid="mood-content">
+        <div className="mx-4 mt-3 card-islamic rounded-2xl p-4 animate-fade-in" data-testid="mood-content">
           <p className="arabic-text text-base text-[#F5F5DC]/90 mb-1">{content.ayet.arabic}</p>
           <p className="text-sm text-[#A8B5A0] mb-1">{content.ayet.turkish}</p>
           <p className="text-[10px] text-[#D4AF37] mb-3">— {content.ayet.sure}</p>
@@ -56,6 +94,19 @@ function MoodSection() {
             <p className="text-[10px] text-[#D4AF37] uppercase tracking-wider mb-1">Dua</p>
             <p className="text-sm text-[#F5F5DC]/80">{content.dua}</p>
           </div>
+          <div className="flex gap-2 mt-3 pt-3 border-t border-[#D4AF37]/10">
+            <button onClick={() => tts.speak(`${content.ayet.turkish}. ${content.hadis.turkish}. ${content.dua}`)} data-testid="mood-tts"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-medium text-[#D4AF37] transition-colors"
+              style={{ background: 'rgba(212,175,55,0.1)' }}>
+              {tts.loading ? <Loader size={12} className="animate-spin" /> : tts.playing ? <Pause size={12} /> : <Play size={12} />}
+              {tts.loading ? 'Yükleniyor' : tts.playing ? 'Durdur' : 'Dinle'}
+            </button>
+            <button onClick={() => shareOrCopy(content.label, `${content.ayet.turkish}\n(${content.ayet.sure})\n\n"${content.hadis.turkish}" — ${content.hadis.source}\n\nDua: ${content.dua}`)} data-testid="mood-share"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-medium text-[#D4AF37] transition-colors"
+              style={{ background: 'rgba(212,175,55,0.1)' }}>
+              <Share2 size={12} /> Paylaş
+            </button>
+          </div>
         </div>
       )}
     </div>
@@ -64,13 +115,7 @@ function MoodSection() {
 
 // ─── Daily Verse Card ───
 function DailyVerse({ verse }) {
-  const speak = () => {
-    if ('speechSynthesis' in window && verse?.turkish) {
-      const u = new SpeechSynthesisUtterance(verse.turkish);
-      u.lang = 'tr-TR'; u.rate = 0.9;
-      speechSynthesis.speak(u);
-    }
-  };
+  const tts = useTTS();
   if (!verse) return null;
   return (
     <div className="mx-4 mb-4 card-islamic rounded-2xl p-4 animate-fade-in" data-testid="daily-verse">
@@ -79,27 +124,30 @@ function DailyVerse({ verse }) {
           <BookOpen size={16} className="text-[#D4AF37]" />
           <span className="text-sm font-semibold text-[#D4AF37]">Günün Ayeti</span>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-[#A8B5A0]">{verse.surah_name} - {verse.verse_number}</span>
-          <button onClick={speak} data-testid="verse-listen-btn" aria-label="Ayeti dinle"
-            className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-[#D4AF37]/10 transition-colors" style={{ border: '1px solid rgba(212,175,55,0.2)' }}>
-            <Volume2 size={13} className="text-[#D4AF37]" />
-          </button>
-        </div>
+        <span className="text-xs text-[#A8B5A0]">{verse.surah_name} - {verse.verse_number}</span>
       </div>
       <p className="arabic-text text-lg text-[#F5F5DC]/90 mb-3 leading-loose">{verse.arabic}</p>
-      <p className="text-sm text-[#A8B5A0] leading-relaxed">{verse.turkish}</p>
+      <p className="text-sm text-[#A8B5A0] leading-relaxed mb-3">{verse.turkish}</p>
+      <div className="flex gap-2 pt-2 border-t border-[#D4AF37]/10">
+        <button onClick={() => tts.speak(verse.turkish)} data-testid="verse-listen-btn" aria-label="Ayeti dinle"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-medium text-[#D4AF37] transition-colors"
+          style={{ background: 'rgba(212,175,55,0.1)' }}>
+          {tts.loading ? <Loader size={12} className="animate-spin" /> : tts.playing ? <Pause size={12} /> : <Volume2 size={12} />}
+          {tts.loading ? 'Yükleniyor...' : tts.playing ? 'Durdur' : 'Dinle'}
+        </button>
+        <button onClick={() => shareOrCopy('Günün Ayeti', `${verse.arabic}\n\n${verse.turkish}\n— ${verse.surah_name} ${verse.verse_number}`)} data-testid="verse-share-btn"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-medium text-[#D4AF37] transition-colors"
+          style={{ background: 'rgba(212,175,55,0.1)' }}>
+          <Share2 size={12} /> Paylaş
+        </button>
+      </div>
     </div>
   );
 }
 
 // ─── Daily Hadith Card ───
 function DailyHadith({ hadith }) {
-  const share = () => {
-    if (navigator.share && hadith) {
-      navigator.share({ title: 'Günün Hadisi', text: `${hadith.turkish}\n— ${hadith.source}` }).catch(() => {});
-    }
-  };
+  const tts = useTTS();
   if (!hadith) return null;
   return (
     <div className="mx-4 mb-4 card-islamic rounded-2xl p-4 animate-fade-in" data-testid="daily-hadith">
@@ -108,41 +156,54 @@ function DailyHadith({ hadith }) {
           <Volume2 size={16} className="text-[#E8C84A]" />
           <span className="text-sm font-semibold text-[#E8C84A]">Günün Hadisi</span>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-[#A8B5A0]">{hadith.source}</span>
-          <button onClick={share} data-testid="hadith-share-btn" aria-label="Hadisi paylaş"
-            className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-[#D4AF37]/10 transition-colors" style={{ border: '1px solid rgba(212,175,55,0.2)' }}>
-            <Share2 size={13} className="text-[#D4AF37]" />
-          </button>
-        </div>
+        <span className="text-xs text-[#A8B5A0]">{hadith.source}</span>
       </div>
       <p className="arabic-text text-base text-[#F5F5DC]/90 mb-2">{hadith.arabic}</p>
-      <p className="text-sm text-[#A8B5A0] leading-relaxed">{hadith.turkish}</p>
+      <p className="text-sm text-[#A8B5A0] leading-relaxed mb-3">{hadith.turkish}</p>
+      <div className="flex gap-2 pt-2 border-t border-[#D4AF37]/10">
+        <button onClick={() => tts.speak(hadith.turkish)} data-testid="hadith-listen-btn" aria-label="Hadisi dinle"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-medium text-[#E8C84A] transition-colors"
+          style={{ background: 'rgba(232,200,74,0.1)' }}>
+          {tts.loading ? <Loader size={12} className="animate-spin" /> : tts.playing ? <Pause size={12} /> : <Volume2 size={12} />}
+          {tts.loading ? 'Yükleniyor...' : tts.playing ? 'Durdur' : 'Dinle'}
+        </button>
+        <button onClick={() => shareOrCopy('Günün Hadisi', `${hadith.arabic}\n\n${hadith.turkish}\n— ${hadith.source}`)} data-testid="hadith-share-btn"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-medium text-[#E8C84A] transition-colors"
+          style={{ background: 'rgba(232,200,74,0.1)' }}>
+          <Share2 size={12} /> Paylaş
+        </button>
+      </div>
     </div>
   );
 }
 
-// ─── Knowledge Cards (Horizontal Scroll) ───
+// ─── Knowledge Cards (HUGE, horizontal scroll) ───
 function KnowledgeCards() {
   const navigate = useNavigate();
   const [cards, setCards] = useState([]);
-  const icons = { tarihte_bugun: '📜', peygamber_hikmeti: '🕌', bilgi_serisi: '📚', sahabe_hayati: '⭐' };
 
   useEffect(() => { api.get('/knowledge-cards').then(r => setCards(r.data)).catch(() => {}); }, []);
   if (!cards.length) return null;
 
   return (
     <div className="mb-5 animate-fade-in" data-testid="knowledge-cards">
-      <h2 className="text-base font-semibold text-[#F5F5DC] mb-3 px-4" style={{ fontFamily: 'Playfair Display, serif' }}>İslam Bilgi Kartları</h2>
-      <div className="flex gap-3 overflow-x-auto scrollbar-hide px-4 pb-2">
+      <div className="flex items-center justify-between px-4 mb-3">
+        <h2 className="text-lg font-bold text-[#F5F5DC]" style={{ fontFamily: 'Playfair Display, serif' }}>İslam Bilgi Hazinesi</h2>
+        <span className="text-[10px] px-2 py-0.5 rounded-full text-[#D4AF37]" style={{ background: 'rgba(212,175,55,0.15)' }}>
+          {cards.reduce((s, c) => s + c.items.length, 0)}+ bilgi
+        </span>
+      </div>
+      <div className="flex gap-4 overflow-x-auto scrollbar-hide px-4 pb-3">
         {cards.map(card => (
           <button key={card.id} onClick={() => navigate(`/knowledge/${card.id}`)} data-testid={`knowledge-${card.id}`}
-            className="shrink-0 w-40 card-islamic rounded-2xl p-4 text-left">
-            <span className="text-2xl block mb-2">{icons[card.id] || '📖'}</span>
-            <p className="text-sm font-semibold text-[#F5F5DC] line-clamp-2">{card.title}</p>
-            <div className="flex items-center gap-1 mt-2 text-[#D4AF37]">
-              <span className="text-[10px]">Keşfet</span>
-              <ChevronRight size={12} />
+            className="shrink-0 w-56 rounded-2xl p-5 text-left transition-all active:scale-[0.97]"
+            style={{ background: `linear-gradient(135deg, rgba(15,61,46,0.7), rgba(10,31,20,0.9))`, border: `1px solid ${card.color || '#D4AF37'}30`, minHeight: '160px' }}>
+            <span className="text-3xl block mb-3">{card.icon || '📖'}</span>
+            <p className="text-base font-bold text-[#F5F5DC] mb-1" style={{ fontFamily: 'Playfair Display, serif' }}>{card.title}</p>
+            <p className="text-xs text-[#A8B5A0] mb-3">{card.items.length} konu</p>
+            <div className="flex items-center gap-1 text-xs font-medium" style={{ color: card.color || '#D4AF37' }}>
+              <span>Keşfet</span>
+              <ChevronRight size={14} />
             </div>
           </button>
         ))}
@@ -184,7 +245,6 @@ function DhikrWidget() {
         </button>
       ) : (
         <div className="card-islamic rounded-2xl p-5 text-center" data-testid="dhikr-counter">
-          {/* Dhikr selector */}
           <div className="flex gap-1.5 overflow-x-auto scrollbar-hide mb-4 pb-1 justify-center flex-wrap">
             {dhikrList.map((d, i) => (
               <button key={d.id} onClick={() => { setActiveIdx(i); setCount(0); }}
@@ -203,9 +263,7 @@ function DhikrWidget() {
                 style={{ background: 'linear-gradient(135deg, rgba(212,175,55,0.2), rgba(212,175,55,0.05))', border: '2px solid rgba(212,175,55,0.3)' }}>
                 {count}
               </button>
-              {current.recommended > 0 && (
-                <p className="text-[10px] text-[#A8B5A0] mt-2">Hedef: {current.recommended}</p>
-              )}
+              {current.recommended > 0 && <p className="text-[10px] text-[#A8B5A0] mt-2">Hedef: {current.recommended}</p>}
               <button onClick={() => { setOpen(false); setCount(0); }} className="text-xs text-[#D4AF37] mt-3 hover:underline">Kapat</button>
             </>
           )}
@@ -320,9 +378,8 @@ function ScholarCTA() {
 
 // ─── Main Dashboard ───
 export default function Dashboard() {
-  const navigate = useNavigate();
   const { user } = useAuth();
-  const { t, selectedCity } = useLang();
+  const { selectedCity } = useLang();
   const [prayerTimes, setPrayerTimes] = useState(null);
   const [randomVerse, setRandomVerse] = useState(null);
   const [randomHadith, setRandomHadith] = useState(null);
@@ -349,25 +406,12 @@ export default function Dashboard() {
         </h1>
       </div>
 
-      {/* 1. Mood */}
       <MoodSection />
-
-      {/* 2. Daily Verse */}
       <DailyVerse verse={randomVerse} />
-
-      {/* 3. Daily Hadith */}
       <DailyHadith hadith={randomHadith} />
-
-      {/* 4. Knowledge Cards */}
       <KnowledgeCards />
-
-      {/* 5. Dhikr */}
       <DhikrWidget />
-
-      {/* 6. Worship Tracker */}
       <WorshipTracker />
-
-      {/* 7. Ramadan */}
       <RamadanMini prayerTimes={prayerTimes} />
 
       {/* Prayer Times */}
@@ -391,7 +435,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* 8. Scholar CTA */}
       <ScholarCTA />
     </div>
   );

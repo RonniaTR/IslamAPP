@@ -15,6 +15,7 @@ import math
 import asyncio
 import httpx
 from emergentintegrations.llm.chat import LlmChat, UserMessage
+from emergentintegrations.llm.openai import OpenAITextToSpeech
 from comparative_religions import COMPARATIVE_TEXTS, TOPICS, get_comparative_data, get_all_topics, search_comparative
 
 ROOT_DIR = Path(__file__).parent
@@ -628,44 +629,13 @@ MOOD_CONTENT = {
 
 # ===================== KNOWLEDGE CARDS =====================
 
-KNOWLEDGE_CARDS = [
-    {
-        "id": "tarihte_bugun",
-        "title": "İslam Tarihinde Bugün",
-        "items": [
-            {"title": "Bedir Savaşı", "content": "Hicretin 2. yılında Müslümanların ilk büyük zaferi. 313 kişilik İslam ordusu, 1000 kişilik Kureyş ordusunu yendi. Bu zafer İslam tarihinin dönüm noktasıdır."},
-            {"title": "Mekke'nin Fethi", "content": "Hicretin 8. yılında Hz. Muhammed (s.a.v.) 10.000 kişilik orduyla Mekke'ye girdi. Kan dökülmeden gerçekleşen bu fetih, İslam'ın barışçıl yayılışının simgesidir."},
-            {"title": "Kudüs'ün Fethi", "content": "Hz. Ömer (r.a.) döneminde 637 yılında Kudüs fethedildi. Hz. Ömer bizzat anahtarları teslim aldı ve diğer dinlerin ibadethanelerine dokunulmamasını emretti."},
-        ]
-    },
-    {
-        "id": "peygamber_hikmeti",
-        "title": "Peygamberlerden Hikmet",
-        "items": [
-            {"title": "Hz. Yusuf'un Sabrı", "content": "Hz. Yusuf kuyuya atıldı, köle olarak satıldı, hapse girdi ama asla Allah'a olan güvenini kaybetmedi. Sonunda Mısır'ın hazine bakanı oldu. Sabır her zaman meyve verir."},
-            {"title": "Hz. İbrahim'in Teslimiyeti", "content": "Hz. İbrahim ateşe atıldığında 'Hasbünallahü ve ni'mel vekil' dedi. Allah ateşi gül bahçesine çevirdi. Teslimiyet en büyük güçtür."},
-            {"title": "Hz. Eyyüb'ün Sabrı", "content": "Hz. Eyyüb yıllarca hastalıkla sınandı ama hiçbir zaman şikayetçi olmadı. 'Bana zarar dokundu, sen merhametlilerin en merhametlisisin' diye dua etti."},
-        ]
-    },
-    {
-        "id": "bilgi_serisi",
-        "title": "İslam Bilgi Serisi",
-        "items": [
-            {"title": "Beş Vakit Namazın Hikmeti", "content": "Sabah namazı uyanıklık ve taze başlangıç, öğle namazı günün ortasında denge, ikindi namazı yorgunlukta yenilenme, akşam namazı şükür, yatsı namazı teslimiyettir."},
-            {"title": "Kur'an'ın Mucizeleri", "content": "Kur'an 23 yılda indi. 114 sure, 6236 ayet içerir. Edebi mucize olmasının yanı sıra bilimsel gerçeklere de işaret eder: embriyoloji, dağların hareketi, evrenin genişlemesi."},
-            {"title": "Zekatın Toplumsal Etkisi", "content": "Zekat sadece bir ibadet değil, sosyal adaleti sağlayan ekonomik bir sistemdir. Zenginlikle fakirlik arasındaki uçurumu kapatır, toplumsal dayanışmayı güçlendirir."},
-        ]
-    },
-    {
-        "id": "sahabe_hayati",
-        "title": "Sahabe Hayatı",
-        "items": [
-            {"title": "Hz. Ebu Bekir (r.a.)", "content": "İslam'ı kabul eden ilk erkek. Tüm malını İslam için harcadı. 'Sıddık' lakabıyla anılır. Peygamberimizin en yakın dostu ve ilk halifedir."},
-            {"title": "Hz. Hatice (r.a.)", "content": "Peygamberimizin ilk eşi ve ilk Müslüman. Tüm malıyla İslam'ı destekledi. Peygamberimiz onu her zaman 'en hayırlı kadın' olarak andı."},
-            {"title": "Hz. Bilal (r.a.)", "content": "İslam'ın ilk müezzini. Köle iken İslam'ı kabul etti, ağır işkencelere maruz kaldı ama 'Ehad, Ehad (Allah bir)' demeye devam etti."},
-        ]
-    },
-]
+# Load from JSON file for 100+ items
+_kc_path = ROOT_DIR / "data" / "knowledge_cards.json"
+if _kc_path.exists():
+    with open(_kc_path, "r", encoding="utf-8") as f:
+        KNOWLEDGE_CARDS = json.load(f)
+else:
+    KNOWLEDGE_CARDS = []
 
 # ===================== DHIKR (ZİKİR) DATA =====================
 
@@ -1521,6 +1491,30 @@ async def get_mood_content(mood_id: str):
     hadis = random.choice(content["hadisler"])
     dua = random.choice(content["dualar"])
     return {"mood": mood_id, "label": content["label"], "ayet": ayet, "hadis": hadis, "dua": dua}
+
+# ===================== TTS API =====================
+
+@api_router.post("/tts")
+async def text_to_speech(request: Request):
+    """Convert text to speech using OpenAI TTS - male voice"""
+    try:
+        body = await request.json()
+        text = body.get("text", "")
+        if not text or len(text) > 4096:
+            raise HTTPException(status_code=400, detail="Text required (max 4096 chars)")
+
+        tts = OpenAITextToSpeech(api_key=os.environ.get("EMERGENT_LLM_KEY"))
+        audio_base64 = await tts.generate_speech_base64(
+            text=text,
+            model="tts-1-hd",
+            voice="onyx",
+            speed=0.95,
+            response_format="mp3"
+        )
+        return {"audio": audio_base64, "format": "mp3"}
+    except Exception as e:
+        logger.error(f"TTS error: {e}")
+        raise HTTPException(status_code=500, detail="TTS generation failed")
 
 @api_router.get("/knowledge-cards")
 async def get_knowledge_cards():
