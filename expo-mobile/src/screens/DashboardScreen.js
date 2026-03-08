@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { BookOpen, Volume2, Moon, Compass, Share2, ChevronRight, Check, Users, Play, Pause } from 'lucide-react-native';
+import api from '../api';
 
 // ─── Constants & Colors ───
 const COLORS = {
@@ -32,18 +33,52 @@ function MoodSection() {
     { id: 'sukur', label: 'Şükür', icon: '✨', desc: 'Nimete şükretmek' },
   ];
 
+  const [selected, setSelected] = useState(null);
+  const [content, setContent] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const handleMood = async (id) => {
+    setSelected(id);
+    setLoading(true);
+    try {
+      const { data } = await api.get(`/mood/${id}`);
+      setContent(data);
+    } catch {
+      setContent(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>Bugün kalbin neye ihtiyaç duyuyor?</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         {moods.map((m) => (
-          <TouchableOpacity key={m.id} style={styles.moodCard}>
+          <TouchableOpacity 
+            key={m.id} 
+            style={[styles.moodCard, selected === m.id && { backgroundColor: 'rgba(212,175,55,0.2)' }]}
+            onPress={() => handleMood(m.id)}
+          >
             <Text style={styles.moodIcon}>{m.icon}</Text>
             <Text style={styles.moodLabel}>{m.label}</Text>
             <Text style={styles.moodDesc}>{m.desc}</Text>
           </TouchableOpacity>
         ))}
       </ScrollView>
+      {loading && <ActivityIndicator size="small" color={COLORS.gold} style={{ marginTop: 16 }} />}
+      {content && !loading && (
+        <View style={[styles.card, { marginTop: 16 }]}>
+          <Text style={styles.arabicText}>{content.ayet.arabic}</Text>
+          <Text style={styles.turkishText}>{content.ayet.turkish}</Text>
+          <Text style={styles.cardMeta}>— {content.ayet.sure}</Text>
+          
+          <View style={[styles.actionRow, { marginTop: 12 }]}>
+            <Text style={[styles.turkishText, {fontStyle: 'italic', marginBottom: 4}]}>"{content.hadis.turkish}"</Text>
+            <Text style={styles.cardMeta}>— {content.hadis.source}</Text>
+          </View>
+        </View>
+      )}
     </View>
   );
 }
@@ -95,18 +130,17 @@ function DhikrWidget() {
 
 // ─── Main Dashboard Screen ───
 export default function DashboardScreen() {
-  // Use mock data until we integrate context and API
-  const mockVerse = {
-    surah_name: "İnşirah", verse_number: "5",
-    arabic: "فَإِنَّ مَعَ الْعُسْرِ يُسْرًا",
-    turkish: "Elbette zorluğun yanında bir kolaylık vardır."
-  };
+  const [randomVerse, setRandomVerse] = useState(null);
+
+  useEffect(() => {
+    api.get('/quran/random').then(r => setRandomVerse(r.data)).catch((err) => console.log('API Error:', err));
+  }, []);
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <DashboardHeader userName="Kullanıcı" />
+      <DashboardHeader userName="" />
       <MoodSection />
-      <DailyVerse verse={mockVerse} />
+      {randomVerse ? <DailyVerse verse={randomVerse} /> : <ActivityIndicator size="large" color={COLORS.gold} />}
       <View style={{ padding: 16 }}>
         <DhikrWidget />
       </View>
