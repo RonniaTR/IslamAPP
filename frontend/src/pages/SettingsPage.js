@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Settings, MapPin, LogOut, Globe, ChevronRight, Languages, ChevronDown } from 'lucide-react';
+import { Settings, MapPin, LogOut, Globe, ChevronRight, Languages, ChevronDown, Bell, BellOff } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLang } from '../contexts/LangContext';
 import api from '../api';
@@ -13,6 +13,28 @@ export default function SettingsPage() {
   const [showCities, setShowCities] = useState(false);
   const [showLang, setShowLang] = useState(false);
   const [countryFilter, setCountryFilter] = useState(null);
+  const [notifEnabled, setNotifEnabled] = useState(false);
+  const [notifSupported, setNotifSupported] = useState(false);
+
+  useEffect(() => {
+    setNotifSupported('Notification' in window && 'serviceWorker' in navigator);
+    if ('Notification' in window) setNotifEnabled(Notification.permission === 'granted');
+  }, []);
+
+  const toggleNotifications = async () => {
+    if (!notifSupported) return;
+    if (notifEnabled) { setNotifEnabled(false); return; }
+    const perm = await Notification.requestPermission();
+    if (perm === 'granted') {
+      setNotifEnabled(true);
+      if ('serviceWorker' in navigator) {
+        try {
+          await navigator.serviceWorker.register('/sw.js');
+          new Notification('Bildirimler Açıldı', { body: 'Günlük İslami bilgi bildirimleri aktif!', icon: '/favicon.ico' });
+        } catch {}
+      }
+    }
+  };
 
   useEffect(() => {
     const q = countryFilter ? `?country=${countryFilter}&lang=${lang}` : `?lang=${lang}`;
@@ -128,6 +150,24 @@ export default function SettingsPage() {
             </div>
           </div>
         </div>
+
+        {/* Notifications */}
+        {notifSupported && (
+          <div className="card-islamic rounded-xl p-4" data-testid="notif-settings">
+            <button onClick={toggleNotifications} className="w-full flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                {notifEnabled ? <Bell size={18} className="text-[#D4AF37]" /> : <BellOff size={18} className="text-[#A8B5A0]" />}
+                <div>
+                  <p className="text-sm font-medium text-[#F5F5DC] text-left">Günlük Bildirimler</p>
+                  <p className="text-xs text-[#A8B5A0]">{notifEnabled ? 'Açık' : 'Kapalı'}</p>
+                </div>
+              </div>
+              <div className={`w-10 h-6 rounded-full flex items-center p-0.5 transition-colors ${notifEnabled ? 'bg-[#D4AF37]' : 'bg-white/10'}`}>
+                <div className={`w-5 h-5 rounded-full bg-white shadow-sm transition-transform ${notifEnabled ? 'translate-x-4' : 'translate-x-0'}`} />
+              </div>
+            </button>
+          </div>
+        )}
 
         <button onClick={async () => { await logout(); navigate('/login', { replace: true }); }} data-testid="logout-btn"
           aria-label="Çıkış yap"

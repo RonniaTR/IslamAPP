@@ -12,6 +12,7 @@ const COMMANDS = [
   { keywords: ['ramazan', 'iftar', 'sahur'], path: '/ramadan' },
   { keywords: ['sohbet', 'chat', 'dua'], path: '/chat' },
   { keywords: ['ayar', 'setting'], path: '/settings' },
+  { keywords: ['not', 'kayıt', 'favori'], path: '/notes' },
 ];
 
 export default function VoiceCommand() {

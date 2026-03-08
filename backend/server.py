@@ -3099,6 +3099,21 @@ async def finish_solo_quiz(session_id: str):
             "last_played": datetime.utcnow()
         })
     
+    # Update leaderboard
+    username = user_id
+    try:
+        user_doc = await db.users.find_one({"user_id": user_id}, {"_id": 0, "name": 1})
+        if user_doc:
+            username = user_doc.get("name", user_id)
+    except:
+        pass
+    update_leaderboard(
+        user_id, username,
+        session.get("score", 0),
+        session.get("correct_count", 0),
+        len(session.get("questions", []))
+    )
+
     return {
         "session_id": session_id,
         "score": session.get("score", 0),
