@@ -1,6 +1,6 @@
 import React from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { Home, BookOpen, MessageCircle, Moon, Settings } from 'lucide-react';
+import { Home, BookOpen, MessageCircle, Heart, Settings } from 'lucide-react';
 import { useLang } from '../contexts/LangContext';
 
 export default function Layout() {
@@ -13,7 +13,7 @@ export default function Layout() {
   const tabs = [
     { path: '/', icon: Home, label: t.home || 'Ana Sayfa' },
     { path: '/quran', icon: BookOpen, label: t.quran || "Kur'an" },
-    { path: '/ramadan', icon: Moon, label: 'Ramazan' },
+    { path: '/notes', icon: Heart, label: 'Notlarım' },
     { path: '/chat', icon: MessageCircle, label: t.chat || 'Sohbet' },
     { path: '/settings', icon: Settings, label: t.settings || 'Ayarlar' },
   ];

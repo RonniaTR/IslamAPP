@@ -16,6 +16,7 @@ import QuizPage from './pages/QuizPage';
 import SettingsPage from './pages/SettingsPage';
 import RamadanPage from './pages/RamadanPage';
 import KnowledgeDetail from './pages/KnowledgeDetail';
+import NotesPage from './pages/NotesPage';
 import LoginPage from './pages/LoginPage';
 import AuthCallback from './pages/AuthCallback';
 
@@ -57,6 +58,7 @@ function AppRouter() {
           <Route path="/quiz" element={<QuizPage />} />
           <Route path="/ramadan" element={<RamadanPage />} />
           <Route path="/knowledge/:cardId" element={<KnowledgeDetail />} />
+          <Route path="/notes" element={<NotesPage />} />
           <Route path="/settings" element={<SettingsPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/" />} />

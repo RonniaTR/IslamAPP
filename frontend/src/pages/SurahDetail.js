@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Play, Pause, Volume2, ChevronDown, Youtube, BookMarked, Loader2 } from 'lucide-react';
+import { ArrowLeft, Play, Pause, Volume2, ChevronDown, Youtube, BookMarked, Loader2, Sparkles, Heart, Copy, Share2, Check } from 'lucide-react';
 import { useLang } from '../contexts/LangContext';
 import api from '../api';
 
@@ -28,6 +28,13 @@ export default function SurahDetail() {
   const [audioDuration, setAudioDuration] = useState(0);
   const audioRef = useRef(new Audio());
   const fullAudioRef = useRef(new Audio());
+  // Kıssa state
+  const [kissaVerse, setKissaVerse] = useState(null);
+  const [kissaData, setKissaData] = useState({});
+  const [kissaLoading, setKissaLoading] = useState(null);
+  // Notes state
+  const [savedNotes, setSavedNotes] = useState({});
+  const [copiedVerse, setCopiedVerse] = useState(null);
 
   useEffect(() => {
     api.get('/quran/reciters').then(r => setReciters(r.data)).catch(() => {});
@@ -91,6 +98,48 @@ export default function SurahDetail() {
       setTafsirData(data);
     } catch { setTafsirData([]); }
     setTafsirLoading(false);
+  };
+
+  const generateKissa = async (verse) => {
+    const key = `${surahNumber}-${verse.number}`;
+    if (kissaData[key]) { setKissaVerse(kissaVerse === key ? null : key); return; }
+    setKissaVerse(key);
+    setKissaLoading(key);
+    try {
+      const { data } = await api.post('/tafsir/kissa', { surah_number: parseInt(surahNumber), verse_number: verse.number });
+      setKissaData(prev => ({ ...prev, [key]: data }));
+    } catch {
+      setKissaData(prev => ({ ...prev, [key]: { kissa: 'Kıssa oluşturulamadı. Tekrar deneyin.', error: true } }));
+    }
+    setKissaLoading(null);
+  };
+
+  const saveToNotes = async (verse, kissa = null) => {
+    const key = `${surahNumber}-${verse.number}`;
+    try {
+      await api.post('/notes', {
+        type: kissa ? 'kissa' : 'ayah',
+        surah_number: parseInt(surahNumber),
+        verse_number: verse.number,
+        title: `${surah?.name || ''} - Ayet ${verse.number}`,
+        content: kissa ? kissa.kissa : (verse.turkish || verse.arabic),
+        scholar_name: kissa?.scholar_name || '',
+      });
+      setSavedNotes(prev => ({ ...prev, [key]: true }));
+    } catch {}
+  };
+
+  const copyVerse = (verse) => {
+    const text = `${verse.arabic}\n\n${verse.turkish}\n\n— ${surah?.name || ''} ${verse.number}. Ayet`;
+    navigator.clipboard.writeText(text).catch(() => {});
+    setCopiedVerse(verse.number);
+    setTimeout(() => setCopiedVerse(null), 2000);
+  };
+
+  const shareVerse = (verse) => {
+    const text = `${verse.arabic}\n\n${verse.turkish}\n\n— ${surah?.name || ''} ${verse.number}. Ayet\n\n— İslami Yaşam Asistanı`;
+    if (navigator.share) navigator.share({ title: `${surah?.name} ${verse.number}`, text }).catch(() => {});
+    else copyVerse(verse);
   };
 
   if (loading) return <div className="flex items-center justify-center h-screen text-gray-500">{t.loading}</div>;
@@ -179,15 +228,33 @@ export default function SurahDetail() {
 
       {/* Verses */}
       <div className="px-4 space-y-4">
-        {surah.verses.map(verse => (
+        {surah.verses.map(verse => {
+          const kissaKey = `${surahNumber}-${verse.number}`;
+          return (
           <div key={verse.number} data-testid={`verse-${verse.number}`}
             className={`rounded-xl p-4 transition-all ${playingVerse === verse.number ? 'bg-emerald-500/10 border border-emerald-500/30' : 'bg-white/[0.02] border border-white/5'}`}>
             <div className="flex items-start justify-between mb-3">
               <div className="w-7 h-7 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-400 text-xs font-bold shrink-0">{verse.number}</div>
               <div className="flex items-center gap-1.5">
                 <button onClick={() => loadTafsir(verse.number, tafsirScholar)} data-testid={`tafsir-verse-${verse.number}`}
-                  className="w-8 h-8 rounded-full flex items-center justify-center bg-white/5 text-amber-400 hover:bg-amber-500/10 transition-all">
+                  className="w-8 h-8 rounded-full flex items-center justify-center bg-white/5 text-amber-400 hover:bg-amber-500/10 transition-all" title="Tefsir">
                   <BookMarked size={14} />
+                </button>
+                <button onClick={() => generateKissa(verse)} data-testid={`kissa-verse-${verse.number}`}
+                  className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${kissaData[kissaKey] ? 'bg-[#D4AF37]/20 text-[#D4AF37]' : 'bg-white/5 text-[#D4AF37]/60 hover:bg-[#D4AF37]/10'}`} title="Kıssa">
+                  {kissaLoading === kissaKey ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+                </button>
+                <button onClick={() => saveToNotes(verse, kissaData[kissaKey])} data-testid={`save-verse-${verse.number}`}
+                  className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${savedNotes[kissaKey] ? 'bg-red-500/20 text-red-400' : 'bg-white/5 text-gray-400 hover:text-red-400 hover:bg-red-500/10'}`} title="Kaydet">
+                  <Heart size={14} fill={savedNotes[kissaKey] ? 'currentColor' : 'none'} />
+                </button>
+                <button onClick={() => copyVerse(verse)} data-testid={`copy-verse-${verse.number}`}
+                  className="w-8 h-8 rounded-full flex items-center justify-center bg-white/5 text-gray-400 hover:text-white transition-all" title="Kopyala">
+                  {copiedVerse === verse.number ? <Check size={14} className="text-green-400" /> : <Copy size={14} />}
+                </button>
+                <button onClick={() => shareVerse(verse)} data-testid={`share-verse-${verse.number}`}
+                  className="w-8 h-8 rounded-full flex items-center justify-center bg-white/5 text-gray-400 hover:text-white transition-all" title="Paylaş">
+                  <Share2 size={14} />
                 </button>
                 <button onClick={() => playVerse(verse)} data-testid={`play-verse-${verse.number}`}
                   className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${playingVerse === verse.number ? 'bg-emerald-500 text-white' : 'bg-white/5 text-gray-400 hover:text-white'}`}>
@@ -200,6 +267,41 @@ export default function SurahDetail() {
               <p className="text-sm text-gray-300 leading-relaxed border-t border-white/5 pt-3">
                 <span className="text-emerald-400 font-medium">{verse.number}.</span> {verse.turkish}
               </p>
+            )}
+
+            {/* Kıssa Panel */}
+            {kissaVerse === kissaKey && kissaData[kissaKey] && (
+              <div className="mt-3 pt-3 border-t border-[#D4AF37]/20 animate-fade-in" data-testid={`kissa-panel-${verse.number}`}>
+                <div className="flex items-center gap-2 mb-3">
+                  <Sparkles size={14} className="text-[#D4AF37]" />
+                  <span className="text-xs font-semibold text-[#D4AF37]">Kıssa & Tefsir</span>
+                  {kissaData[kissaKey].scholar_name && (
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#D4AF37]/10 text-[#D4AF37]/80">{kissaData[kissaKey].scholar_name}</span>
+                  )}
+                  <button onClick={() => setKissaVerse(null)} className="ml-auto text-[10px] text-gray-500 hover:text-white">✕</button>
+                </div>
+                <div className="bg-[#D4AF37]/5 rounded-lg p-3">
+                  <p className="text-sm text-[#F5F5DC]/85 leading-relaxed whitespace-pre-wrap">{kissaData[kissaKey].kissa}</p>
+                </div>
+                <div className="flex gap-2 mt-2">
+                  <button onClick={() => saveToNotes(verse, kissaData[kissaKey])} data-testid={`save-kissa-${verse.number}`}
+                    className="flex items-center gap-1 text-[10px] text-[#D4AF37] px-2 py-1 rounded-lg bg-[#D4AF37]/10 hover:bg-[#D4AF37]/20 transition-colors">
+                    <Heart size={10} fill={savedNotes[kissaKey] ? 'currentColor' : 'none'} /> {savedNotes[kissaKey] ? 'Kaydedildi' : 'Kaydet'}
+                  </button>
+                  <button onClick={() => { navigator.clipboard.writeText(kissaData[kissaKey].kissa).catch(() => {}); }}
+                    className="flex items-center gap-1 text-[10px] text-[#D4AF37] px-2 py-1 rounded-lg bg-[#D4AF37]/10 hover:bg-[#D4AF37]/20 transition-colors">
+                    <Copy size={10} /> Kopyala
+                  </button>
+                  <button onClick={() => {
+                    const text = `${kissaData[kissaKey].kissa}\n\n— ${surah?.name} ${verse.number}. Ayet\n— İslami Yaşam Asistanı`;
+                    if (navigator.share) navigator.share({ title: 'Kıssa', text }).catch(() => {});
+                    else navigator.clipboard.writeText(text).catch(() => {});
+                  }}
+                    className="flex items-center gap-1 text-[10px] text-[#D4AF37] px-2 py-1 rounded-lg bg-[#D4AF37]/10 hover:bg-[#D4AF37]/20 transition-colors">
+                    <Share2 size={10} /> Paylaş
+                  </button>
+                </div>
+              </div>
             )}
 
             {/* Tafsir Panel */}
@@ -240,7 +342,8 @@ export default function SurahDetail() {
               </div>
             )}
           </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

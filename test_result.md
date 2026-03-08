@@ -105,6 +105,18 @@
 user_problem_statement: "Dijital İslami Yaşam ve İlim Asistanı - Islamic life assistant app with AI, prayer times, qibla compass, and pomodoro timer"
 
 backend:
+  - task: "Islamic Knowledge Assistant Review Request Endpoints"
+    implemented: true
+    working: false
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: false
+        agent: "testing"
+        comment: "REVIEW REQUEST TESTING COMPLETED ⚠️ Tested 6 specific endpoints from review request. SUCCESS (4/6): Guest login ✓, Quran search (50 results for 'rahman') ✓, Quran surahs (all 114) ✓, Surah detail (Fatiha with 7 verses) ✓. FAILURES (2/6): POST /api/tafsir/kissa returns HTTP 500 'Kıssa oluşturulamadı' (LLM integration broken) ❌, Notes CRUD completely broken with BSON encoding error 'cannot encode object: Cookie(None)' when trying to serialize Cookie parameters to MongoDB ❌. Core Quran functionality working, authentication working, but AI features and notes system have critical bugs requiring main agent attention."
+
   - task: "Google OAuth Authentication System"
     implemented: true
     working: true
@@ -411,6 +423,8 @@ agent_communication:
     message: "UI REDESIGN TESTING COMPLETED ✅ Comprehensive mobile UI testing after major redesign at https://islamic-knowledge-33.preview.emergentagent.com (430x844 viewport). CORE FLOWS WORKING: Splash→Login (4s animation) ✓, Guest Login→Dashboard ✓, Ramadan Navigation ✓, Settings Navigation ✓, Logout Flow ✓, Design Colors (dark green, gold #D4AF37, cream #F5F5DC) ✓, Voice Button Visibility ✓. CRITICAL ISSUES FOUND: Dashboard missing prayer-times-card, daily-verse, daily-hadith elements ❌, Ramadan page missing ramadan-verse, ramadan-hadith sections ❌. These suggest API data loading failures. Navigation structure works perfectly with 5-tab bottom nav. Authentication flows working. App loads but dynamic content not displaying properly."
   - agent: "testing"
     message: "KEŞFET (DISCOVER) BACKEND API TESTING COMPLETED SUCCESSFULLY ✅ Comprehensive testing of all new Keşfet screen endpoints completed at https://islamic-knowledge-33.preview.emergentagent.com/api. ALL 17 TESTS PASSED (100% success rate): 1) Mood Content APIs: GET /mood/{mood_id} for all 4 moods (huzur, motivasyon, sabir, sukur) returning complete ayet, hadis, dua structure ✓, invalid mood returns 404 ✓ 2) Knowledge Cards APIs: GET /knowledge-cards returns 4 valid cards with items ✓, GET /knowledge-cards/tarihte_bugun returns specific card with 3 items ✓, invalid card returns 404 ✓ 3) Dhikr API: GET /dhikr returns 8 complete dhikr items (subhanallah, elhamdulillah, etc.) with arabic, turkish, meaning fields ✓ 4) Worship Tracking APIs (AUTH REQUIRED): GET /worship/today returns default false state ✓, POST /worship/track updates worship status ✓, subsequent GET shows updated values (namaz=true, zikir=true) ✓ Authentication working perfectly with guest tokens ✓ 5) Expanded Scholars API: GET /scholars returns 12 scholars including all 5 new additions (mehmet_okuyan, suleyman_ates, yasar_nuri, cübbeli_ahmet, ali_erbas) ✓ 6) Regression Testing: All existing endpoints remain functional: GET /quran/random ✓, GET /hadith/random ✓, GET /prayer-times/istanbul ✓, POST /auth/guest returns 'Kardeşim' ✓ CRITICAL BUG FIXED DURING TESTING: worship tracking endpoints had BSON encoding error with Cookie parameter - fixed by adding proper parameter declarations. All new Keşfet backend APIs are production-ready."
+  - agent: "testing"
+    message: "ISLAMIC KNOWLEDGE ASSISTANT REVIEW REQUEST TESTING COMPLETED ⚠️ Comprehensive testing of 6 specific backend API endpoints requested in review at https://islamic-knowledge-33.preview.emergentagent.com/api. RESULTS: 4/6 TESTS PASSED (66.7% success rate). WORKING CORRECTLY ✅: 1) POST /api/auth/guest creates guest user with name 'Kardeşim' ✓ 2) GET /api/quran/search?query=rahman returns 50 results with proper surah_number, verse_number, arabic, turkish fields ✓ 3) GET /api/quran/surahs returns all 114 surahs correctly ✓ 4) GET /api/quran/surah/1 returns Fatiha with 7 verses including arabic/turkish text ✓. CRITICAL FAILURES ❌: 5) POST /api/tafsir/kissa fails with HTTP 500 'Kıssa oluşturulamadı' error - LLM integration issue ❌ 6) Notes CRUD (POST/GET/DELETE /api/notes) fails with BSON encoding error 'cannot encode object: Cookie(None)' - backend bug with Cookie parameter serialization to MongoDB ❌. AUTHENTICATION: Guest login working perfectly, cookie sessions established. CORE QURAN APIs: Search and surahs functionality fully operational. AI FEATURES: Kıssa generation broken due to LLM service issues. NOTES SYSTEM: Completely non-functional due to BSON serialization bug. Created backend_islamic_knowledge_test_improved.py for comprehensive validation. RECOMMENDATION: Fix Cookie parameter handling in notes endpoints and investigate LLM integration for kıssa generation."
 
 test_plan:
   current_focus: []
