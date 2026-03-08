@@ -129,7 +129,7 @@ function DhikrWidget() {
 }
 
 // ─── Main Dashboard Screen ───
-export default function DashboardScreen() {
+export default function DashboardScreen({ navigation }) {
   const [randomVerse, setRandomVerse] = useState(null);
 
   useEffect(() => {
@@ -141,6 +141,22 @@ export default function DashboardScreen() {
       <DashboardHeader userName="" />
       <MoodSection />
       {randomVerse ? <DailyVerse verse={randomVerse} /> : <ActivityIndicator size="large" color={COLORS.gold} />}
+      
+      <View style={{ paddingHorizontal: 16, flexDirection: 'row', gap: 12, marginBottom: 16 }}>
+        <TouchableOpacity style={{ flex: 1, backgroundColor: COLORS.cardBg, padding: 16, borderRadius: 16, alignItems: 'center', borderWidth: 1, borderColor: COLORS.cardBorder }} onPress={() => navigation.navigate('Quiz')}>
+           <Text style={{ fontSize: 24, marginBottom: 8 }}>🏆</Text>
+           <Text style={{ color: COLORS.textMain, fontSize: 14, fontWeight: 'bold' }}>İslam Quiz</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={{ flex: 1, backgroundColor: COLORS.cardBg, padding: 16, borderRadius: 16, alignItems: 'center', borderWidth: 1, borderColor: COLORS.cardBorder }} onPress={() => navigation.navigate('Scholars')}>
+           <Text style={{ fontSize: 24, marginBottom: 8 }}>💡</Text>
+           <Text style={{ color: COLORS.textMain, fontSize: 14, fontWeight: 'bold' }}>Hocalara Sor</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={{ flex: 1, backgroundColor: COLORS.cardBg, padding: 16, borderRadius: 16, alignItems: 'center', borderWidth: 1, borderColor: COLORS.cardBorder }} onPress={() => navigation.navigate('Ramadan')}>
+           <Text style={{ fontSize: 24, marginBottom: 8 }}>🌙</Text>
+           <Text style={{ color: COLORS.textMain, fontSize: 14, fontWeight: 'bold' }}>Ramazan</Text>
+        </TouchableOpacity>
+      </View>
+
       <View style={{ padding: 16 }}>
         <DhikrWidget />
       </View>

@@ -11,6 +11,9 @@ import SurahDetailScreen from '../screens/SurahDetailScreen';
 import HadithScreen from '../screens/HadithScreen';
 import ChatScreen from '../screens/ChatScreen';
 import LoginScreen from '../screens/LoginScreen';
+import QuizScreen from '../screens/QuizScreen';
+import ScholarsScreen from '../screens/ScholarsScreen';
+import RamadanScreen from '../screens/RamadanScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -69,6 +72,9 @@ export default function AppNavigator({ user, onLogin }) {
           <>
             <Stack.Screen name="MainTabs" component={MainTabs} />
             <Stack.Screen name="SurahDetail" component={SurahDetailScreen} />
+            <Stack.Screen name="Quiz" component={QuizScreen} />
+            <Stack.Screen name="Scholars" component={ScholarsScreen} />
+            <Stack.Screen name="Ramadan" component={RamadanScreen} />
           </>
         )}
       </Stack.Navigator>
