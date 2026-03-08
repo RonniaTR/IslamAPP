@@ -26,7 +26,7 @@ Supports multiple languages (TR/EN/AR), international prayer times, Quran readin
 11. **Settings**: Language, city (106 cities), Qibla direction
 
 ## Preview URL
-https://deen-companion-38.preview.emergentagent.com
+https://quranic-login-1.preview.emergentagent.com
 
 ## Backlog
 - P1: Enhanced audio player (background play, playlist mode)
