@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Settings, MapPin, LogOut, Globe, ChevronRight, Languages, ChevronDown } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLang } from '../contexts/LangContext';
 import api from '../api';
 
 export default function SettingsPage() {
+  const navigate = useNavigate();
   const { user, logout } = useAuth();
   const { t, lang, setLang, selectedCity, setSelectedCity, defaultCountry, LANGUAGES } = useLang();
   const [cities, setCities] = useState([]);
@@ -115,7 +117,7 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        <button onClick={logout} data-testid="logout-btn"
+        <button onClick={async () => { await logout(); navigate('/login', { replace: true }); }} data-testid="logout-btn"
           className="w-full glass rounded-xl p-4 flex items-center gap-3 text-red-400 hover:bg-red-500/10 transition-colors">
           <LogOut size={18} />
           <span className="text-sm font-medium">{t.logout}</span>

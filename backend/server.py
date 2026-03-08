@@ -1013,8 +1013,16 @@ async def get_current_user_info(request: Request, session_token: Optional[str] =
 @api_router.post("/auth/logout")
 async def logout(request: Request, response: Response, session_token: Optional[str] = Cookie(None)):
     """Logout and clear session"""
-    if session_token:
-        await db.user_sessions.delete_one({"session_token": session_token})
+    token = session_token
+    
+    # Fallback to Authorization header (same logic as get_current_user)
+    if not token:
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            token = auth_header.split(" ")[1]
+    
+    if token:
+        await db.user_sessions.delete_one({"session_token": token})
     
     response.delete_cookie(key="session_token", path="/")
     return {"message": "Logged out successfully"}

@@ -19,29 +19,14 @@ export function AuthProvider({ children }) {
   }, []);
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const sessionId = params.get('session_id');
-    if (sessionId) {
-      api.post(`/auth/session?session_id=${sessionId}`)
-        .then(({ data }) => {
-          setUser(data);
-          window.history.replaceState({}, '', window.location.pathname);
-        })
-        .catch(() => checkAuth());
-    } else {
-      checkAuth();
+    // CRITICAL: If returning from OAuth callback, skip the /me check.
+    // AuthCallback will exchange the session_id and establish the session first.
+    if (window.location.hash?.includes('session_id=')) {
+      setLoading(false);
+      return;
     }
+    checkAuth();
   }, [checkAuth]);
-
-  const loginAsGuest = async () => {
-    try {
-      const { data } = await api.post('/auth/guest');
-      setUser(data);
-      return data;
-    } catch (e) {
-      console.error('Guest login failed:', e);
-    }
-  };
 
   const logout = async () => {
     try {
@@ -52,7 +37,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, loginAsGuest, logout, checkAuth }}>
+    <AuthContext.Provider value={{ user, setUser, loading, logout, checkAuth }}>
       {children}
     </AuthContext.Provider>
   );

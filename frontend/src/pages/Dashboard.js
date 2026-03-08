@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { BookOpen, MessageCircle, Users, Award, ChevronRight, Volume2, Compass } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLang } from '../contexts/LangContext';
@@ -7,12 +7,22 @@ import api from '../api';
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { user, loginAsGuest } = useAuth();
+  const { user, setUser, checkAuth } = useAuth();
   const { t, selectedCity } = useLang();
+  const location = useLocation();
   const [prayerTimes, setPrayerTimes] = useState(null);
   const [randomVerse, setRandomVerse] = useState(null);
 
-  useEffect(() => { if (!user) loginAsGuest(); }, [user, loginAsGuest]);
+  // If user data passed from AuthCallback via location state, set it
+  useEffect(() => {
+    if (location.state?.user && !user) {
+      setUser(location.state.user);
+      // Clear state
+      window.history.replaceState({}, '', location.pathname);
+    } else if (!user) {
+      checkAuth();
+    }
+  }, [location.state, user, setUser, checkAuth]);
 
   useEffect(() => {
     api.get(`/prayer-times/${selectedCity}`).then(r => setPrayerTimes(r.data)).catch(() => {});
