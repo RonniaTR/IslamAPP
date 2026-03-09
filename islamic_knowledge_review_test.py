@@ -11,7 +11,7 @@ from datetime import datetime
 import sys
 
 # Backend URL
-BACKEND_URL = "https://islamic-knowledge-33.preview.emergentagent.com/api"
+BACKEND_URL = "https://islamic-superapp-2.preview.emergentagent.com/api"
 
 # Global session cookie storage
 session_cookies = None

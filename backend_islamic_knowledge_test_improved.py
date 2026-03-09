@@ -10,7 +10,7 @@ import sys
 from typing import Dict, Any, Optional
 
 # Backend URL from frontend .env
-BASE_URL = "https://islamic-knowledge-33.preview.emergentagent.com/api"
+BASE_URL = "https://islamic-superapp-2.preview.emergentagent.com/api"
 
 class IslamicKnowledgeAPITester:
     def __init__(self):

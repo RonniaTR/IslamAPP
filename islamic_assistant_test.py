@@ -10,7 +10,7 @@ import time
 from datetime import datetime
 
 # Configuration
-BACKEND_URL = "https://islamic-knowledge-33.preview.emergentagent.com/api"
+BACKEND_URL = "https://islamic-superapp-2.preview.emergentagent.com/api"
 
 def test_root_endpoint():
     """Test GET /api/ - Root endpoint, should return version info"""

@@ -8,7 +8,7 @@ import subprocess
 import aiohttp
 import time
 
-BASE_URL = "https://islamic-knowledge-33.preview.emergentagent.com"
+BASE_URL = "https://islamic-superapp-2.preview.emergentagent.com"
 API_BASE = f"{BASE_URL}/api"
 
 async def debug_logout_issue():

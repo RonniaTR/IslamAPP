@@ -14,7 +14,7 @@ from playwright.async_api import async_playwright
 import aiohttp
 
 # Test configuration
-BASE_URL = "https://islamic-knowledge-33.preview.emergentagent.com"
+BASE_URL = "https://islamic-superapp-2.preview.emergentagent.com"
 API_BASE = f"{BASE_URL}/api"
 
 class Colors:

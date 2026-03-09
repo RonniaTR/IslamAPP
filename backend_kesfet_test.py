@@ -17,7 +17,7 @@ import json
 import sys
 import os
 
-API_BASE_URL = "https://islamic-knowledge-33.preview.emergentagent.com/api"
+API_BASE_URL = "https://islamic-superapp-2.preview.emergentagent.com/api"
 
 class KesfetAPITester:
     def __init__(self):
