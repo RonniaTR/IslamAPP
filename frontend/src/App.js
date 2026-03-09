@@ -13,6 +13,7 @@ import SurahDetail from './pages/SurahDetail';
 import HadithPage from './pages/HadithPage';
 import AiChat from './pages/AiChat';
 import ScholarsPage from './pages/ScholarsPage';
+import QiblaPage from './pages/QiblaPage';
 import MealAudioPage from './pages/MealAudioPage';
 import QuizPage from './pages/QuizPage';
 import SettingsPage from './pages/SettingsPage';
@@ -56,6 +57,7 @@ function AppRouter() {
           <Route path="/hadith" element={<HadithPage />} />
           <Route path="/chat" element={<AiChat />} />
           <Route path="/scholars" element={<ScholarsPage />} />
+          <Route path="/qibla" element={<QiblaPage />} />
           <Route path="/meal-audio" element={<MealAudioPage />} />
           <Route path="/quiz" element={<QuizPage />} />
           <Route path="/ramadan" element={<RamadanPage />} />

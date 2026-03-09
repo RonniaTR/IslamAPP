@@ -27,11 +27,11 @@ print('User ID: ' + userId);
 ## Step 2: Test Backend API
 ```bash
 # Test auth endpoint
-curl -X GET "https://islamic-knowledge-33.preview.emergentagent.com/api/auth/me" \
+curl -X GET "https://islamic-superapp-2.preview.emergentagent.com/api/auth/me" \
   -H "Authorization: Bearer YOUR_SESSION_TOKEN"
 
 # Test protected endpoints
-curl -X GET "https://islamic-knowledge-33.preview.emergentagent.com/api/quran/surahs" \
+curl -X GET "https://islamic-superapp-2.preview.emergentagent.com/api/quran/surahs" \
   -H "Authorization: Bearer YOUR_SESSION_TOKEN"
 ```
 
@@ -47,7 +47,7 @@ await page.context.add_cookies([{
     "secure": True,
     "sameSite": "None"
 }])
-await page.goto("https://islamic-knowledge-33.preview.emergentagent.com")
+await page.goto("https://islamic-superapp-2.preview.emergentagent.com")
 ```
 
 ## Quick Debug

@@ -2284,6 +2284,16 @@ Muteber kaynak belirt (Siyer kitapları, Tabakat vb.)
 - Siyer: "(İbn Hişâm, es-Sîretü'n-Nebeviyye)"
 """
 
+@api_router.get("/health")
+async def health_check():
+    """Health check endpoint"""
+    try:
+        await db.command("ping")
+        db_ok = True
+    except:
+        db_ok = False
+    return {"status": "ok", "db": db_ok, "version": "2.0"}
+
 @api_router.post("/ai/chat", response_model=ChatResponse)
 async def ai_chat(request: ChatRequest):
     try:
@@ -2303,16 +2313,20 @@ async def ai_chat(request: ChatRequest):
             role = "Kullanıcı" if msg["role"] == "user" else "Asistan"
             context += f"{role}: {msg['content']}\n"
         
-        system_message = ISLAMIC_ADVISOR_SYSTEM_PROMPT + f"\n\nMevcut sohbet geçmişi:\n{context}"
+        system_message = ISLAMIC_ADVISOR_SYSTEM_PROMPT + f"\n\nSohbet geçmişi:\n{context}"
         
+        import asyncio
         chat = LlmChat(
             api_key=EMERGENT_LLM_KEY,
-            session_id=f"islamic_advisor_{request.session_id}",
+            session_id=f"advisor_{request.session_id}",
             system_message=system_message
-        ).with_model("anthropic", "claude-sonnet-4-5-20250929")
+        )
+        chat.with_model("anthropic", "claude-sonnet-4-5-20250929")
         
-        user_message = UserMessage(text=request.message)
-        response = await chat.send_message(user_message)
+        response = await asyncio.wait_for(
+            chat.send_message(UserMessage(text=request.message)),
+            timeout=30
+        )
         
         assistant_msg = ChatMessage(
             session_id=request.session_id,
@@ -2323,9 +2337,12 @@ async def ai_chat(request: ChatRequest):
         
         return ChatResponse(response=response, session_id=request.session_id)
         
+    except asyncio.TimeoutError:
+        logger.error("AI Chat timeout")
+        return ChatResponse(response="Üzgünüm, şu anda yanıt sürem aşıldı. Lütfen tekrar deneyin.", session_id=request.session_id)
     except Exception as e:
         logger.error(f"AI Chat error: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"AI service error: {str(e)}")
+        return ChatResponse(response="Bir hata oluştu. Lütfen daha sonra tekrar deneyin.", session_id=request.session_id)
 
 @api_router.get("/ai/history/{session_id}")
 async def get_chat_history(session_id: str):

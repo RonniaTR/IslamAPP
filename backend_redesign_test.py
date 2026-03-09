@@ -9,7 +9,7 @@ import json
 from typing import Dict, Any
 
 # Backend URL from frontend/.env
-BASE_URL = "https://islamic-knowledge-33.preview.emergentagent.com/api"
+BASE_URL = "https://islamic-superapp-2.preview.emergentagent.com/api"
 
 def test_auth_endpoints():
     """Test authentication endpoints"""
